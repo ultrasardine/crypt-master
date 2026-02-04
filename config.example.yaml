@@ -1,0 +1,66 @@
+# Crypt-Master Trading Bot Configuration
+# 
+# This file contains all configurable parameters for the trading bot.
+# Environment variables can override any value (see .env.example).
+#
+# Requirements:
+# - 9.1: Load configuration from YAML or JSON file at startup
+# - 9.2: Support environment variable overrides for sensitive values
+# - 9.4: Provide default values for all optional configuration parameters
+
+# Trading Mode
+# Set to false for live trading (CAUTION!)
+dry_run: true
+
+# Django Settings
+debug: false
+secret_key: "your-secret-key-here-change-in-production"
+allowed_hosts:
+  - localhost
+  - 127.0.0.1
+
+# Database Configuration
+database:
+  url: "postgres://cryptmaster:cryptmaster@localhost:5432/cryptmaster"
+  use_sqlite: false
+  conn_max_age: 600
+
+# Redis Configuration
+redis:
+  url: "redis://localhost:6379/0"
+
+# Pionex API Configuration
+# IMPORTANT: Use environment variables for these in production!
+pionex:
+  api_key: ""
+  api_secret: ""
+
+# Risk Management Configuration
+risk:
+  max_position_pct: 0.10      # Maximum position as % of portfolio (10%)
+  max_risk_per_trade: 0.02    # Maximum risk per trade as % of portfolio (2%)
+  max_drawdown: 0.20          # Maximum allowed drawdown (20%)
+  min_confidence: 0.85        # Minimum confidence to execute trades (85%)
+  bot_loss_threshold: 0.10    # P&L threshold for flagging underperforming bots (10%)
+
+# Analysis Configuration
+analysis:
+  interval_seconds: 60        # Analysis interval in seconds
+  rsi_period: 14              # RSI calculation period
+  macd_fast: 12               # MACD fast EMA period
+  macd_slow: 26               # MACD slow EMA period
+  macd_signal: 9              # MACD signal line period
+  bollinger_period: 20        # Bollinger Bands period
+  bollinger_std: 2.0          # Bollinger Bands standard deviation multiplier
+
+# LLM Configuration (Optional)
+llm:
+  enabled: false
+  ollama_url: "http://localhost:11434"
+  model: "llama3.2"
+
+# Logging Configuration
+logging:
+  level: "INFO"               # DEBUG, INFO, WARNING, ERROR, CRITICAL
+  max_bytes: 10485760         # 10 MB
+  backup_count: 5

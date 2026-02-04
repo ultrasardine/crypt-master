@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+
+{% block title %}API Key Setup - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>API Key Setup</h1>
+        <a href="{% url 'core:settings' %}" class="btn btn-secondary">Back to Settings</a>
+    </div>
+    
+    <!-- Current Status -->
+    <div class="row">
+        <div class="col settings-section">
+            <h2>Current Status</h2>
+            <div class="api-status-detailed">
+                <div class="status-card {% if api_key_configured %}status-ok{% else %}status-missing{% endif %}">
+                    <span class="status-icon">{% if api_key_configured %}✓{% else %}✗{% endif %}</span>
+                    <div class="status-info">
+                        <span class="status-title">PIONEX_API_KEY</span>
+                        {% if api_key_configured %}
+                        <span class="status-detail">Configured: {{ api_key_masked }}</span>
+                        {% else %}
+                        <span class="status-detail">Not configured</span>
+                        {% endif %}
+                    </div>
+                </div>
+                
+                <div class="status-card {% if api_secret_configured %}status-ok{% else %}status-missing{% endif %}">
+                    <span class="status-icon">{% if api_secret_configured %}✓{% else %}✗{% endif %}</span>
+                    <div class="status-info">
+                        <span class="status-title">PIONEX_API_SECRET</span>
+                        {% if api_secret_configured %}
+                        <span class="status-detail">Configured: ****</span>
+                        {% else %}
+                        <span class="status-detail">Not configured</span>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Setup Instructions -->
+    <div class="row">
+        <div class="col settings-section">
+            <h2>Setup Instructions</h2>
+            
+            <div class="setup-steps">
+                <div class="step">
+                    <span class="step-number">1</span>
+                    <div class="step-content">
+                        <h3>Get API Keys from Pionex</h3>
+                        <ol>
+                            <li>Log in to your Pionex account</li>
+                            <li>Go to <strong>Settings → API Management</strong></li>
+                            <li>Click <strong>Create API Key</strong></li>
+                            <li>Set permissions: Enable <strong>Read</strong> and <strong>Trade</strong></li>
+                            <li>Complete 2FA verification</li>
+                            <li>Copy your API Key and Secret Key</li>
+                        </ol>
+                        <div class="alert alert-warning">
+                            <strong>Important:</strong> Never share your API secret. Store it securely.
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">2</span>
+                    <div class="step-content">
+                        <h3>Configure Environment Variables</h3>
+                        <p>API keys should be set as environment variables for security. Choose one method:</p>
+                        
+                        <h4>Option A: Docker Compose (Recommended)</h4>
+                        <p>Add to your <code>.env</code> file in the project root:</p>
+                        <pre>PIONEX_API_KEY=your_api_key_here
+PIONEX_API_SECRET=your_api_secret_here</pre>
+                        
+                        <h4>Option B: Portainer</h4>
+                        <p>In Portainer Stack configuration, add environment variables:</p>
+                        <pre>environment:
+  - PIONEX_API_KEY=your_api_key_here
+  - PIONEX_API_SECRET=your_api_secret_here</pre>
+                        
+                        <h4>Option C: Shell Export</h4>
+                        <p>For local development:</p>
+                        <pre>export PIONEX_API_KEY="your_api_key_here"
+export PIONEX_API_SECRET="your_api_secret_here"</pre>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">3</span>
+                    <div class="step-content">
+                        <h3>Restart Services</h3>
+                        <p>After setting environment variables, restart the application:</p>
+                        <pre>docker-compose restart</pre>
+                        <p>Or in Portainer, redeploy the stack.</p>
+                    </div>
+                </div>
+                
+                <div class="step">
+                    <span class="step-number">4</span>
+                    <div class="step-content">
+                        <h3>Verify Connection</h3>
+                        <p>Return to this page to verify the API keys are configured. The status should show green checkmarks.</p>
+                        <p>You can also test the connection by viewing your portfolio on the dashboard.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Security Notes -->
+    <div class="row">
+        <div class="col settings-section">
+            <h2>Security Best Practices</h2>
+            <ul class="security-list">
+                <li><strong>Never commit API keys to version control.</strong> Use <code>.env</code> files that are gitignored.</li>
+                <li><strong>Use IP whitelisting</strong> on Pionex if possible to restrict API access.</li>
+                <li><strong>Enable withdrawal whitelist</strong> on Pionex to prevent unauthorized withdrawals.</li>
+                <li><strong>Regularly rotate API keys</strong> and revoke unused ones.</li>
+                <li><strong>Monitor API usage</strong> on Pionex for suspicious activity.</li>
+                <li><strong>Start with dry-run mode</strong> to test the system before enabling live trading.</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}

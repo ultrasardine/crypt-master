@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Trading Dashboard</h1>
+    
+    {% if dry_run_mode %}
+    <div class="alert alert-warning">
+        <strong>Dry-Run Mode Active</strong> - All trades are simulated. No real orders will be placed.
+    </div>
+    {% endif %}
+    
+    <!-- Portfolio Overview -->
+    <div class="row">
+        <div class="col portfolio-card">
+            <h2>Portfolio Overview</h2>
+            {% if portfolio %}
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Total Value</span>
+                    <span class="stat-value">${{ portfolio.total_value|floatformat:2 }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Available Balance</span>
+                    <span class="stat-value">${{ portfolio.available_balance|floatformat:2 }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Allocated to Bots</span>
+                    <span class="stat-value">${{ portfolio.allocated_to_bots|floatformat:2 }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Current Drawdown</span>
+                    <span class="stat-value {% if portfolio.drawdown > 10 %}text-danger{% elif portfolio.drawdown > 5 %}text-warning{% else %}text-success{% endif %}">
+                        {{ portfolio.drawdown|floatformat:2 }}%
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">High Water Mark</span>
+                    <span class="stat-value">${{ portfolio.high_water_mark|floatformat:2 }}</span>
+                </div>
+            </div>
+            {% else %}
+            <p class="text-muted">No portfolio data available yet.</p>
+            {% endif %}
+        </div>
+        
+        <div class="col trade-stats-card">
+            <h2>Trade Statistics</h2>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Total Trades</span>
+                    <span class="stat-value">{{ trade_stats.total_trades }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Open Positions</span>
+                    <span class="stat-value">{{ trade_stats.open_positions }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Win Rate</span>
+                    <span class="stat-value {% if trade_stats.win_rate >= 50 %}text-success{% else %}text-danger{% endif %}">
+                        {{ trade_stats.win_rate|floatformat:1 }}%
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total P&L</span>
+                    <span class="stat-value {% if trade_stats.total_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ${{ trade_stats.total_pnl|floatformat:2 }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Active Bots Section -->
+    <div class="row">
+        <div class="col bots-card">
+            <div class="card-header">
+                <h2>Active Bots</h2>
+                <span class="badge">{{ active_bots_count }} active</span>
+            </div>
+            
+            <div class="bot-summary">
+                <div class="summary-item">
+                    <span class="summary-label">Total Invested</span>
+                    <span class="summary-value">${{ total_invested|floatformat:2 }}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Total P&L</span>
+                    <span class="summary-value {% if total_bots_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ${{ total_bots_pnl|floatformat:2 }}
+                    </span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">Grid Bots</span>
+                    <span class="summary-value">{{ grid_bots_count }}</span>
+                </div>
+                <div class="summary-item">
+                    <span class="summary-label">DCA Bots</span>
+                    <span class="summary-value">{{ dca_bots_count }}</span>
+                </div>
+            </div>
+            
+            {% if active_bots %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Type</th>
+                        <th>Symbol</th>
+                        <th>Invested</th>
+                        <th>P&L</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for bot in active_bots %}
+                    <tr>
+                        <td><span class="bot-type bot-type-{{ bot.bot_type|lower }}">{{ bot.bot_type }}</span></td>
+                        <td>{{ bot.trading_pair.symbol }}</td>
+                        <td>${{ bot.invested_amount|floatformat:2 }}</td>
+                        <td class="{% if bot.current_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if bot.current_pnl %}${{ bot.current_pnl|floatformat:2 }}{% else %}-{% endif %}
+                        </td>
+                        <td><span class="status status-{{ bot.status|lower }}">{{ bot.status }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="view-all"><a href="{% url 'bots:bot_list' %}">View all bots →</a></p>
+            {% else %}
+            <p class="text-muted">No active bots.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Recent Signals and Trades -->
+    <div class="row">
+        <div class="col signals-card">
+            <div class="card-header">
+                <h2>Recent Signals</h2>
+                <div class="signal-badges">
+                    <span class="badge badge-primary">{{ actionable_signals_count }} actionable</span>
+                    <span class="badge badge-success">{{ high_confidence_signals_count }} high confidence</span>
+                </div>
+            </div>
+            
+            {% if recent_signals %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Symbol</th>
+                        <th>Direction</th>
+                        <th>Confidence</th>
+                        <th>Executed</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for signal in recent_signals %}
+                    <tr>
+                        <td>{{ signal.created_at|date:"H:i" }}</td>
+                        <td>{{ signal.trading_pair.symbol }}</td>
+                        <td><span class="direction direction-{{ signal.direction|lower }}">{{ signal.direction }}</span></td>
+                        <td>
+                            <span class="confidence {% if signal.confidence >= 85 %}confidence-high{% elif signal.confidence >= 70 %}confidence-medium{% else %}confidence-low{% endif %}">
+                                {{ signal.confidence|floatformat:1 }}%
+                            </span>
+                        </td>
+                        <td>{{ signal.executed|yesno:"✓,✗" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="view-all"><a href="{% url 'trading:signal_list' %}">View all signals →</a></p>
+            {% else %}
+            <p class="text-muted">No recent signals.</p>
+            {% endif %}
+        </div>
+        
+        <div class="col trades-card">
+            <h2>Recent Trades</h2>
+            {% if recent_trades %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Symbol</th>
+                        <th>Side</th>
+                        <th>Entry</th>
+                        <th>P&L</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for trade in recent_trades %}
+                    <tr>
+                        <td>{{ trade.created_at|date:"H:i" }}</td>
+                        <td>{{ trade.trading_pair.symbol }}</td>
+                        <td><span class="side side-{{ trade.side|lower }}">{{ trade.side }}</span></td>
+                        <td>${{ trade.entry_price|floatformat:2 }}</td>
+                        <td class="{% if trade.pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                            {% if trade.pnl %}${{ trade.pnl|floatformat:2 }}{% else %}-{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            <p class="view-all"><a href="{% url 'trading:trade_list' %}">View all trades →</a></p>
+            {% else %}
+            <p class="text-muted">No recent trades.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

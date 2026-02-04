@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block title %}Settings - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>System Settings</h1>
+    
+    <!-- Trading Mode Section -->
+    <div class="row">
+        <div class="col settings-section">
+            <h2>Trading Mode</h2>
+            <div class="mode-status">
+                {% if dry_run_mode %}
+                <div class="mode-badge mode-simulated">
+                    <span class="mode-icon">🔒</span>
+                    <span class="mode-text">Dry-Run Mode</span>
+                </div>
+                <p class="mode-description">All trades are simulated. No real orders will be placed on Pionex.</p>
+                <form method="post" action="{% url 'core:toggle_mode' %}" class="mode-toggle-form">
+                    {% csrf_token %}
+                    <div class="form-group">
+                        <label for="confirm">Type "LIVE" to enable live trading:</label>
+                        <input type="text" name="confirm" id="confirm" placeholder="LIVE">
+                    </div>
+                    <button type="submit" class="btn btn-danger">Switch to Live Trading</button>
+                </form>
+                {% else %}
+                <div class="mode-badge mode-live">
+                    <span class="mode-icon">⚡</span>
+                    <span class="mode-text">Live Trading</span>
+                </div>
+                <p class="mode-description text-danger">Real orders will be placed on Pionex. Use with caution!</p>
+                <form method="post" action="{% url 'core:toggle_mode' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">Switch to Dry-Run Mode</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="col settings-section">
+            <h2>API Configuration</h2>
+            <div class="api-status">
+                <div class="status-item">
+                    <span class="status-label">API Key</span>
+                    {% if api_key_configured %}
+                    <span class="status-value text-success">✓ Configured</span>
+                    {% else %}
+                    <span class="status-value text-danger">✗ Not Set</span>
+                    {% endif %}
+                </div>
+                <div class="status-item">
+                    <span class="status-label">API Secret</span>
+                    {% if api_secret_configured %}
+                    <span class="status-value text-success">✓ Configured</span>
+                    {% else %}
+                    <span class="status-value text-danger">✗ Not Set</span>
+                    {% endif %}
+                </div>
+            </div>
+            <a href="{% url 'core:api_key_setup' %}" class="btn btn-secondary">API Key Setup Guide</a>
+        </div>
+    </div>
+    
+    <!-- Configuration Parameters -->
+    <div class="row">
+        <div class="col settings-section">
+            <h2>Configuration Parameters</h2>
+            <p class="text-muted">Adjust trading parameters. Changes take effect immediately.</p>
+            
+            <div class="config-list">
+                {% for config in config_display %}
+                <div class="config-item">
+                    <div class="config-header">
+                        <span class="config-key">{{ config.key }}</span>
+                        {% if config.is_default %}
+                        <span class="badge badge-secondary">Default</span>
+                        {% else %}
+                        <span class="badge badge-primary">Custom</span>
+                        {% endif %}
+                    </div>
+                    <p class="config-description">{{ config.description }}</p>
+                    
+                    <form method="post" action="{% url 'core:settings_update' %}" class="config-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="key" value="{{ config.key }}">
+                        <input type="hidden" name="type" value="{{ config.type }}">
+                        
+                        <div class="config-input-group">
+                            {% if config.type == "boolean" %}
+                            <select name="value" class="config-input">
+                                <option value="true" {% if config.value %}selected{% endif %}>True</option>
+                                <option value="false" {% if not config.value %}selected{% endif %}>False</option>
+                            </select>
+                            {% elif config.type == "number" %}
+                            <input type="number" name="value" value="{{ config.value }}" step="0.01" class="config-input">
+                            {% elif config.type == "integer" %}
+                            <input type="number" name="value" value="{{ config.value }}" step="1" class="config-input">
+                            {% else %}
+                            <input type="text" name="value" value="{{ config.value }}" class="config-input">
+                            {% endif %}
+                            
+                            <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                        </div>
+                    </form>
+                    
+                    {% if not config.is_default %}
+                    <form method="post" action="{% url 'core:settings_reset' %}" class="reset-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="key" value="{{ config.key }}">
+                        <button type="submit" class="btn btn-sm btn-secondary">Reset to Default ({{ config.default }})</button>
+                    </form>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Raw Configuration -->
+    <div class="row">
+        <div class="col settings-section">
+            <h2>All Stored Configurations</h2>
+            {% if configs %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Key</th>
+                        <th>Value</th>
+                        <th>Last Updated</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for config in configs %}
+                    <tr>
+                        <td><code>{{ config.key }}</code></td>
+                        <td><code>{{ config.value }}</code></td>
+                        <td>{{ config.updated_at|date:"M d, Y H:i" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted">No custom configurations stored. All values are at defaults.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

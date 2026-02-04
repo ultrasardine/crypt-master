@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+
+{% block title %}Signals - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Trading Signals</h1>
+    
+    <!-- 24h Summary -->
+    <div class="summary-bar">
+        <div class="summary-item">
+            <span class="summary-label">Signals (24h)</span>
+            <span class="summary-value">{{ total_signals_24h }}</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Buy Signals</span>
+            <span class="summary-value text-success">{{ buy_signals_24h }}</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Sell Signals</span>
+            <span class="summary-value text-danger">{{ sell_signals_24h }}</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Avg Confidence</span>
+            <span class="summary-value">{{ avg_confidence|floatformat:1 }}%</span>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <form method="get" class="filter-form">
+        <div class="form-group">
+            <label for="direction">Direction</label>
+            <select name="direction" id="direction">
+                <option value="">All Directions</option>
+                {% for value, label in direction_choices %}
+                <option value="{{ value }}" {% if current_direction == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="executed">Executed</label>
+            <select name="executed" id="executed">
+                <option value="">All</option>
+                <option value="yes" {% if current_executed == "yes" %}selected{% endif %}>Executed</option>
+                <option value="no" {% if current_executed == "no" %}selected{% endif %}>Pending</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="min_confidence">Min Confidence</label>
+            <input type="number" name="min_confidence" id="min_confidence" min="0" max="100" step="1" 
+                   value="{{ current_min_confidence }}" placeholder="85">
+        </div>
+        
+        <div class="form-group">
+            <label for="symbol">Trading Pair</label>
+            <select name="symbol" id="symbol">
+                <option value="">All Pairs</option>
+                {% for pair in trading_pairs %}
+                <option value="{{ pair.symbol }}" {% if current_symbol == pair.symbol %}selected{% endif %}>{{ pair.symbol }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <button type="submit" class="btn btn-secondary">Filter</button>
+        <a href="{% url 'trading:signal_list' %}" class="btn btn-secondary">Clear</a>
+    </form>
+    
+    <!-- Signal Table -->
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Symbol</th>
+                <th>Direction</th>
+                <th>Confidence</th>
+                <th>Executed</th>
+                <th>Reasoning</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for signal in signals %}
+            <tr>
+                <td>{{ signal.created_at|date:"M d, H:i" }}</td>
+                <td>{{ signal.trading_pair.symbol }}</td>
+                <td><span class="direction direction-{{ signal.direction|lower }}">{{ signal.direction }}</span></td>
+                <td>
+                    <span class="confidence {% if signal.confidence >= 85 %}confidence-high{% elif signal.confidence >= 70 %}confidence-medium{% else %}confidence-low{% endif %}">
+                        {{ signal.confidence|floatformat:1 }}%
+                    </span>
+                </td>
+                <td>
+                    {% if signal.executed %}
+                    <span class="badge badge-success">✓ {{ signal.executed_at|date:"H:i" }}</span>
+                    {% else %}
+                    <span class="badge badge-secondary">Pending</span>
+                    {% endif %}
+                </td>
+                <td>{{ signal.reasoning|truncatechars:50|default:"-" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="6" class="text-muted">No signals found matching your criteria.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    {% if page_obj.has_other_pages %}
+    <nav class="pagination">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if current_direction %}&direction={{ current_direction }}{% endif %}{% if current_executed %}&executed={{ current_executed }}{% endif %}{% if current_min_confidence %}&min_confidence={{ current_min_confidence }}{% endif %}{% if current_symbol %}&symbol={{ current_symbol }}{% endif %}">Previous</a>
+        {% endif %}
+        <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if current_direction %}&direction={{ current_direction }}{% endif %}{% if current_executed %}&executed={{ current_executed }}{% endif %}{% if current_min_confidence %}&min_confidence={{ current_min_confidence }}{% endif %}{% if current_symbol %}&symbol={{ current_symbol }}{% endif %}">Next</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

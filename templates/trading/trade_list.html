@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block title %}Trades - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Trade History</h1>
+    
+    <!-- Statistics Summary -->
+    <div class="row stats-row">
+        <div class="col stats-card">
+            <h3>Live Trading</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Total Trades</span>
+                    <span class="stat-value">{{ live_stats.total_trades }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Open Positions</span>
+                    <span class="stat-value">{{ live_stats.open_positions }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Win Rate</span>
+                    <span class="stat-value {% if live_stats.win_rate >= 50 %}text-success{% else %}text-danger{% endif %}">
+                        {{ live_stats.win_rate|floatformat:1 }}%
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total P&L</span>
+                    <span class="stat-value {% if live_stats.total_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ${{ live_stats.total_pnl|floatformat:2 }}
+                    </span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col stats-card">
+            <h3>Simulated Trading</h3>
+            <div class="stats-grid">
+                <div class="stat-item">
+                    <span class="stat-label">Total Trades</span>
+                    <span class="stat-value">{{ sim_stats.total_trades }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Open Positions</span>
+                    <span class="stat-value">{{ sim_stats.open_positions }}</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Win Rate</span>
+                    <span class="stat-value {% if sim_stats.win_rate >= 50 %}text-success{% else %}text-danger{% endif %}">
+                        {{ sim_stats.win_rate|floatformat:1 }}%
+                    </span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Total P&L</span>
+                    <span class="stat-value {% if sim_stats.total_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ${{ sim_stats.total_pnl|floatformat:2 }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 24h Summary -->
+    <div class="summary-bar">
+        <div class="summary-item">
+            <span class="summary-label">24h P&L</span>
+            <span class="summary-value {% if recent_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                ${{ recent_pnl|floatformat:2 }}
+            </span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">24h Volume</span>
+            <span class="summary-value">${{ recent_volume|floatformat:2 }}</span>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <form method="get" class="filter-form">
+        <div class="form-group">
+            <label for="side">Side</label>
+            <select name="side" id="side">
+                <option value="">All Sides</option>
+                {% for value, label in side_choices %}
+                <option value="{{ value }}" {% if current_side == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="mode">Mode</label>
+            <select name="mode" id="mode">
+                <option value="">All Modes</option>
+                <option value="live" {% if current_mode == "live" %}selected{% endif %}>Live</option>
+                <option value="simulated" {% if current_mode == "simulated" %}selected{% endif %}>Simulated</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="status">Status</label>
+            <select name="status" id="status">
+                <option value="">All Statuses</option>
+                <option value="open" {% if current_status == "open" %}selected{% endif %}>Open</option>
+                <option value="closed" {% if current_status == "closed" %}selected{% endif %}>Closed</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="profit">Profitability</label>
+            <select name="profit" id="profit">
+                <option value="">All</option>
+                <option value="profitable" {% if current_profit == "profitable" %}selected{% endif %}>Profitable</option>
+                <option value="unprofitable" {% if current_profit == "unprofitable" %}selected{% endif %}>Unprofitable</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="symbol">Trading Pair</label>
+            <select name="symbol" id="symbol">
+                <option value="">All Pairs</option>
+                {% for pair in trading_pairs %}
+                <option value="{{ pair.symbol }}" {% if current_symbol == pair.symbol %}selected{% endif %}>{{ pair.symbol }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <button type="submit" class="btn btn-secondary">Filter</button>
+        <a href="{% url 'trading:trade_list' %}" class="btn btn-secondary">Clear</a>
+    </form>
+    
+    <!-- Trade Table -->
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Time</th>
+                <th>Symbol</th>
+                <th>Side</th>
+                <th>Quantity</th>
+                <th>Entry Price</th>
+                <th>Exit Price</th>
+                <th>P&L</th>
+                <th>P&L %</th>
+                <th>Mode</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for trade in trades %}
+            <tr>
+                <td>{{ trade.created_at|date:"M d, H:i" }}</td>
+                <td>{{ trade.trading_pair.symbol }}</td>
+                <td><span class="side side-{{ trade.side|lower }}">{{ trade.side }}</span></td>
+                <td>{{ trade.quantity|floatformat:6 }}</td>
+                <td>${{ trade.entry_price|floatformat:2 }}</td>
+                <td>{% if trade.exit_price %}${{ trade.exit_price|floatformat:2 }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
+                <td class="{% if trade.pnl >= 0 %}text-success{% elif trade.pnl < 0 %}text-danger{% endif %}">
+                    {% if trade.pnl %}${{ trade.pnl|floatformat:2 }}{% else %}<span class="text-muted">-</span>{% endif %}
+                </td>
+                <td class="{% if trade.pnl_percent >= 0 %}text-success{% elif trade.pnl_percent < 0 %}text-danger{% endif %}">
+                    {% if trade.pnl_percent %}{{ trade.pnl_percent|floatformat:2 }}%{% else %}<span class="text-muted">-</span>{% endif %}
+                </td>
+                <td>
+                    {% if trade.is_simulated %}
+                    <span class="badge badge-warning">Sim</span>
+                    {% else %}
+                    <span class="badge badge-success">Live</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if trade.exit_price %}
+                    <span class="status status-stopped">Closed</span>
+                    {% else %}
+                    <span class="status status-active">Open</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-muted">No trades found matching your criteria.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    {% if page_obj.has_other_pages %}
+    <nav class="pagination">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if current_side %}&side={{ current_side }}{% endif %}{% if current_mode %}&mode={{ current_mode }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_profit %}&profit={{ current_profit }}{% endif %}{% if current_symbol %}&symbol={{ current_symbol }}{% endif %}">Previous</a>
+        {% endif %}
+        <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if current_side %}&side={{ current_side }}{% endif %}{% if current_mode %}&mode={{ current_mode }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_profit %}&profit={{ current_profit }}{% endif %}{% if current_symbol %}&symbol={{ current_symbol }}{% endif %}">Next</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

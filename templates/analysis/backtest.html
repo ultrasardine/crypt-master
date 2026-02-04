@@ -1,0 +1,415 @@
+{% extends "base.html" %}
+
+{% block title %}Backtest - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1>Strategy Backtesting</h1>
+    <p class="subtitle">Test your trading strategy against historical data</p>
+    
+    <div class="row">
+        <!-- Backtest Configuration Form -->
+        <div class="col">
+            <div class="card">
+                <h2>Configuration</h2>
+                <form id="backtest-form">
+                    <!-- Trading Pair -->
+                    <div class="form-group">
+                        <label for="symbol">Trading Pair</label>
+                        <select name="symbol" id="symbol">
+                            {% for pair in trading_pairs %}
+                            <option value="{{ pair.symbol }}" {% if current_symbol == pair.symbol %}selected{% endif %}>
+                                {{ pair.symbol }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Time Interval -->
+                    <div class="form-group">
+                        <label for="interval">Candle Interval</label>
+                        <select name="interval" id="interval">
+                            {% for interval in intervals %}
+                            <option value="{{ interval.value }}">{{ interval.label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <!-- Number of Candles -->
+                    <div class="form-group">
+                        <label for="num_candles">Number of Candles</label>
+                        <input type="number" name="num_candles" id="num_candles" 
+                               value="500" min="100" max="2000">
+                        <small>More candles = longer backtest period</small>
+                    </div>
+                    
+                    <!-- Initial Capital -->
+                    <div class="form-group">
+                        <label for="initial_capital">Initial Capital ($)</label>
+                        <input type="number" name="initial_capital" id="initial_capital" 
+                               value="{{ default_config.initial_capital }}" min="100" step="100">
+                    </div>
+                    
+                    <!-- Risk Parameters -->
+                    <h3>Risk Parameters</h3>
+                    
+                    <div class="form-group">
+                        <label for="min_confidence">Min Confidence (%)</label>
+                        <input type="number" name="min_confidence" id="min_confidence" 
+                               value="{{ default_config.min_confidence }}" min="50" max="100" step="1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="max_position_pct">Max Position Size (%)</label>
+                        <input type="number" name="max_position_pct" id="max_position_pct" 
+                               value="{{ default_config.max_position_pct }}" min="1" max="100" step="1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="max_risk_per_trade_pct">Max Risk Per Trade (%)</label>
+                        <input type="number" name="max_risk_per_trade_pct" id="max_risk_per_trade_pct" 
+                               value="{{ default_config.max_risk_per_trade_pct }}" min="0.5" max="10" step="0.5">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="max_drawdown_pct">Max Drawdown (%)</label>
+                        <input type="number" name="max_drawdown_pct" id="max_drawdown_pct" 
+                               value="{{ default_config.max_drawdown_pct }}" min="5" max="50" step="1">
+                    </div>
+                    
+                    <!-- Trading Costs -->
+                    <h3>Trading Costs</h3>
+                    
+                    <div class="form-group">
+                        <label for="slippage_pct">Slippage (%)</label>
+                        <input type="number" name="slippage_pct" id="slippage_pct" 
+                               value="{{ default_config.slippage_pct }}" min="0" max="5" step="0.1">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="commission_pct">Commission (%)</label>
+                        <input type="number" name="commission_pct" id="commission_pct" 
+                               value="{{ default_config.commission_pct }}" min="0" max="5" step="0.1">
+                    </div>
+                    
+                    <button type="submit" class="btn btn-primary" id="run-btn">
+                        Run Backtest
+                    </button>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Results Section -->
+        <div class="col col-wide">
+            <div class="card" id="results-section" style="display: none;">
+                <h2>Backtest Results</h2>
+                
+                <!-- Summary Stats -->
+                <div class="summary-bar" id="summary-stats">
+                    <div class="summary-item">
+                        <span class="summary-label">Total Return</span>
+                        <span class="summary-value" id="total-return">-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Win Rate</span>
+                        <span class="summary-value" id="win-rate">-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Profit Factor</span>
+                        <span class="summary-value" id="profit-factor">-</span>
+                    </div>
+                    <div class="summary-item">
+                        <span class="summary-label">Max Drawdown</span>
+                        <span class="summary-value" id="max-drawdown">-</span>
+                    </div>
+                </div>
+                
+                <!-- Detailed Metrics -->
+                <div class="metrics-grid" id="detailed-metrics">
+                    <div class="metric-card">
+                        <span class="metric-label">Total Trades</span>
+                        <span class="metric-value" id="total-trades">-</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Winning Trades</span>
+                        <span class="metric-value text-success" id="winning-trades">-</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Losing Trades</span>
+                        <span class="metric-value text-danger" id="losing-trades">-</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Sharpe Ratio</span>
+                        <span class="metric-value" id="sharpe-ratio">-</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Sortino Ratio</span>
+                        <span class="metric-value" id="sortino-ratio">-</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Avg Trade</span>
+                        <span class="metric-value" id="avg-trade">-</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Largest Win</span>
+                        <span class="metric-value text-success" id="largest-win">-</span>
+                    </div>
+                    <div class="metric-card">
+                        <span class="metric-label">Largest Loss</span>
+                        <span class="metric-value text-danger" id="largest-loss">-</span>
+                    </div>
+                </div>
+                
+                <!-- Equity Curve Chart -->
+                <div class="chart-container">
+                    <h3>Equity Curve</h3>
+                    <canvas id="equity-chart"></canvas>
+                </div>
+                
+                <!-- Trade History -->
+                <div class="trades-section">
+                    <h3>Trade History</h3>
+                    <table class="data-table" id="trades-table">
+                        <thead>
+                            <tr>
+                                <th>Entry Time</th>
+                                <th>Direction</th>
+                                <th>Entry Price</th>
+                                <th>Exit Price</th>
+                                <th>P&L</th>
+                                <th>P&L %</th>
+                            </tr>
+                        </thead>
+                        <tbody id="trades-body">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Loading State -->
+            <div class="card" id="loading-section" style="display: none;">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                    <p>Running backtest...</p>
+                </div>
+            </div>
+            
+            <!-- Initial State -->
+            <div class="card" id="initial-section">
+                <div class="empty-state">
+                    <h3>Configure and Run a Backtest</h3>
+                    <p>Set your parameters on the left and click "Run Backtest" to see results.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+let equityChart = null;
+
+document.getElementById('backtest-form').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    // Show loading state
+    document.getElementById('initial-section').style.display = 'none';
+    document.getElementById('results-section').style.display = 'none';
+    document.getElementById('loading-section').style.display = 'block';
+    
+    // Collect form data
+    const formData = {
+        symbol: document.getElementById('symbol').value,
+        interval: document.getElementById('interval').value,
+        num_candles: document.getElementById('num_candles').value,
+        initial_capital: document.getElementById('initial_capital').value,
+        min_confidence: document.getElementById('min_confidence').value,
+        max_position_pct: document.getElementById('max_position_pct').value,
+        max_risk_per_trade_pct: document.getElementById('max_risk_per_trade_pct').value,
+        max_drawdown_pct: document.getElementById('max_drawdown_pct').value,
+        slippage_pct: document.getElementById('slippage_pct').value,
+        commission_pct: document.getElementById('commission_pct').value,
+    };
+    
+    try {
+        const response = await fetch('{% url "analysis:run_backtest" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken'),
+            },
+            body: JSON.stringify(formData),
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            displayResults(data.report);
+        } else {
+            alert('Backtest failed: ' + data.error);
+            document.getElementById('loading-section').style.display = 'none';
+            document.getElementById('initial-section').style.display = 'block';
+        }
+    } catch (error) {
+        alert('Error running backtest: ' + error);
+        document.getElementById('loading-section').style.display = 'none';
+        document.getElementById('initial-section').style.display = 'block';
+    }
+});
+
+function displayResults(report) {
+    // Hide loading, show results
+    document.getElementById('loading-section').style.display = 'none';
+    document.getElementById('results-section').style.display = 'block';
+    
+    const metrics = report.metrics;
+    
+    // Update summary stats
+    const totalReturn = parseFloat(metrics.total_return);
+    document.getElementById('total-return').textContent = totalReturn.toFixed(2) + '%';
+    document.getElementById('total-return').className = 'summary-value ' + (totalReturn >= 0 ? 'text-success' : 'text-danger');
+    
+    document.getElementById('win-rate').textContent = parseFloat(metrics.win_rate).toFixed(1) + '%';
+    document.getElementById('profit-factor').textContent = metrics.profit_factor === Infinity ? '∞' : parseFloat(metrics.profit_factor).toFixed(2);
+    
+    const maxDrawdown = parseFloat(metrics.max_drawdown) * 100;
+    document.getElementById('max-drawdown').textContent = maxDrawdown.toFixed(2) + '%';
+    document.getElementById('max-drawdown').className = 'summary-value text-danger';
+    
+    // Update detailed metrics
+    document.getElementById('total-trades').textContent = metrics.total_trades;
+    document.getElementById('winning-trades').textContent = metrics.winning_trades;
+    document.getElementById('losing-trades').textContent = metrics.losing_trades;
+    document.getElementById('sharpe-ratio').textContent = parseFloat(metrics.sharpe_ratio).toFixed(2);
+    document.getElementById('sortino-ratio').textContent = parseFloat(metrics.sortino_ratio).toFixed(2);
+    document.getElementById('avg-trade').textContent = '$' + parseFloat(metrics.avg_trade).toFixed(2);
+    document.getElementById('largest-win').textContent = '$' + parseFloat(metrics.largest_win).toFixed(2);
+    document.getElementById('largest-loss').textContent = '$' + parseFloat(metrics.largest_loss).toFixed(2);
+    
+    // Draw equity curve
+    drawEquityCurve(report.equity_curve);
+    
+    // Populate trades table
+    populateTradesTable(report.trades);
+}
+
+function drawEquityCurve(equityCurve) {
+    const ctx = document.getElementById('equity-chart').getContext('2d');
+    
+    // Destroy existing chart if any
+    if (equityChart) {
+        equityChart.destroy();
+    }
+    
+    // Sample data if too many points
+    let sampledData = equityCurve;
+    if (equityCurve.length > 200) {
+        const step = Math.ceil(equityCurve.length / 200);
+        sampledData = equityCurve.filter((_, i) => i % step === 0);
+    }
+    
+    const labels = sampledData.map(p => new Date(p.timestamp).toLocaleDateString());
+    const equityData = sampledData.map(p => parseFloat(p.equity));
+    const drawdownData = sampledData.map(p => parseFloat(p.drawdown) * 100);
+    
+    equityChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Equity ($)',
+                    data: equityData,
+                    borderColor: '#4CAF50',
+                    backgroundColor: 'rgba(76, 175, 80, 0.1)',
+                    fill: true,
+                    tension: 0.1,
+                    yAxisID: 'y',
+                },
+                {
+                    label: 'Drawdown (%)',
+                    data: drawdownData,
+                    borderColor: '#f44336',
+                    backgroundColor: 'rgba(244, 67, 54, 0.1)',
+                    fill: true,
+                    tension: 0.1,
+                    yAxisID: 'y1',
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            scales: {
+                y: {
+                    type: 'linear',
+                    display: true,
+                    position: 'left',
+                    title: {
+                        display: true,
+                        text: 'Equity ($)'
+                    }
+                },
+                y1: {
+                    type: 'linear',
+                    display: true,
+                    position: 'right',
+                    title: {
+                        display: true,
+                        text: 'Drawdown (%)'
+                    },
+                    grid: {
+                        drawOnChartArea: false,
+                    },
+                }
+            }
+        }
+    });
+}
+
+function populateTradesTable(trades) {
+    const tbody = document.getElementById('trades-body');
+    tbody.innerHTML = '';
+    
+    // Show last 50 trades
+    const recentTrades = trades.slice(-50).reverse();
+    
+    recentTrades.forEach(trade => {
+        const row = document.createElement('tr');
+        const pnl = parseFloat(trade.pnl);
+        const pnlPercent = parseFloat(trade.pnl_percent);
+        
+        row.innerHTML = `
+            <td>${new Date(trade.entry_time).toLocaleString()}</td>
+            <td><span class="direction direction-${trade.direction.toLowerCase()}">${trade.direction}</span></td>
+            <td>$${parseFloat(trade.entry_price).toFixed(2)}</td>
+            <td>${trade.exit_price ? '$' + parseFloat(trade.exit_price).toFixed(2) : '-'}</td>
+            <td class="${pnl >= 0 ? 'text-success' : 'text-danger'}">$${pnl.toFixed(2)}</td>
+            <td class="${pnlPercent >= 0 ? 'text-success' : 'text-danger'}">${pnlPercent.toFixed(2)}%</td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+</script>
+{% endblock %}

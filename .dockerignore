@@ -1,0 +1,90 @@
+# =============================================================================
+# Docker Ignore File - Exclude files from Docker build context
+# =============================================================================
+
+# Git
+.git/
+.gitignore
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+.eggs/
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Type checking
+.mypy_cache/
+.dmypy.json
+
+# Documentation
+docs/
+*.md
+!README.md
+
+# Kiro specs (not needed in container)
+.kiro/
+
+# Local development files
+.env
+.env.local
+.env.*.local
+.env.example
+.env.docker.example
+*.sqlite3
+db.sqlite3
+
+# Logs (will be mounted as volume)
+logs/
+*.log
+
+# Static files (collected at build time)
+staticfiles/
+
+# Node modules (if any frontend assets)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Docker files (prevent recursive inclusion)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Lock files (we copy uv.lock explicitly)
+# Keep uv.lock for reproducible builds
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Backup files
+*.bak
+*.backup

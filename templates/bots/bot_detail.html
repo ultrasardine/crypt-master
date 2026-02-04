@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+
+{% block title %}Bot {{ bot.pionex_bot_id }} - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Bot Details</h1>
+        <div class="btn-group">
+            {% if bot.status == "ACTIVE" %}
+            <button type="button" class="btn btn-danger" onclick="document.getElementById('stop-modal').style.display='block'">Stop Bot</button>
+            {% endif %}
+            <a href="{% url 'bots:bot_list' %}" class="btn btn-secondary">Back to List</a>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col">
+            <h2>
+                <span class="bot-type bot-type-{{ bot.bot_type|lower }}">{{ bot.get_bot_type_display }}</span>
+                {{ bot.trading_pair.symbol }}
+            </h2>
+            
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Bot ID</span>
+                    <span class="detail-value"><code>{{ bot.pionex_bot_id }}</code></span>
+                </div>
+                
+                <div class="detail-item">
+                    <span class="detail-label">Status</span>
+                    <span class="detail-value">
+                        <span class="status status-{{ bot.status|lower }}">{{ bot.get_status_display }}</span>
+                    </span>
+                </div>
+                
+                <div class="detail-item">
+                    <span class="detail-label">Mode</span>
+                    <span class="detail-value">
+                        {% if bot.is_simulated %}
+                        <span class="badge badge-warning">Simulated</span>
+                        {% else %}
+                        <span class="badge badge-success">Live</span>
+                        {% endif %}
+                    </span>
+                </div>
+                
+                <div class="detail-item">
+                    <span class="detail-label">Invested Amount</span>
+                    <span class="detail-value">${{ bot.invested_amount|floatformat:2 }}</span>
+                </div>
+                
+                <div class="detail-item">
+                    <span class="detail-label">Current Value</span>
+                    <span class="detail-value">
+                        {% if bot.current_value %}${{ bot.current_value|floatformat:2 }}{% else %}-{% endif %}
+                    </span>
+                </div>
+                
+                <div class="detail-item">
+                    <span class="detail-label">P&L</span>
+                    <span class="detail-value {% if bot.current_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        {% if bot.current_pnl %}
+                        ${{ bot.current_pnl|floatformat:2 }}
+                        {% if bot.pnl_percent %}({{ bot.pnl_percent|floatformat:2 }}%){% endif %}
+                        {% else %}-{% endif %}
+                    </span>
+                </div>
+                
+                <div class="detail-item">
+                    <span class="detail-label">Created</span>
+                    <span class="detail-value">{{ bot.created_at|date:"M d, Y H:i" }}</span>
+                </div>
+                
+                {% if bot.stopped_at %}
+                <div class="detail-item">
+                    <span class="detail-label">Stopped</span>
+                    <span class="detail-value">{{ bot.stopped_at|date:"M d, Y H:i" }}</span>
+                </div>
+                {% endif %}
+            </div>
+            
+            {% if bot.stop_reason %}
+            <div class="stop-reason">
+                <h3>Stop Reason</h3>
+                <p>{{ bot.stop_reason }}</p>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="col">
+            <h2>Parameters</h2>
+            {% if bot.params %}
+            <div class="params-display">
+                {% for key, value in bot.params.items %}
+                <div class="param-item">
+                    <span class="param-key">{{ key }}</span>
+                    <span class="param-value">{{ value }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-muted">No parameters configured.</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Bot Events -->
+    <div class="row">
+        <div class="col">
+            <h2>Event History</h2>
+            {% if events %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Event</th>
+                        <th>Reasoning</th>
+                        <th>Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                    <tr>
+                        <td>{{ event.created_at|date:"M d, H:i:s" }}</td>
+                        <td>
+                            <span class="event-type event-type-{{ event.event_type|lower }}">
+                                {{ event.get_event_type_display }}
+                            </span>
+                        </td>
+                        <td>{{ event.reasoning|default:"-" }}</td>
+                        <td>
+                            {% if event.details %}
+                            <code>{{ event.details|truncatechars:50 }}</code>
+                            {% else %}-{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted">No events recorded.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Stop Bot Modal -->
+<div id="stop-modal" class="modal" style="display:none;">
+    <div class="modal-content">
+        <h2>Stop Bot</h2>
+        <p>Are you sure you want to stop this bot?</p>
+        <form method="post" action="{% url 'bots:bot_stop' bot.pk %}">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="reason">Reason for stopping</label>
+                <textarea name="reason" id="reason" rows="3" placeholder="Enter reason..."></textarea>
+            </div>
+            <div class="btn-group">
+                <button type="submit" class="btn btn-danger">Stop Bot</button>
+                <button type="button" class="btn btn-secondary" onclick="document.getElementById('stop-modal').style.display='none'">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

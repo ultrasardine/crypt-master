@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+
+{% block title %}{{ indicator_info.name }} - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>{{ indicator_info.name }}</h1>
+        <a href="{% url 'analysis:analysis' %}?symbol={{ current_symbol }}" class="btn btn-secondary">Back to Analysis</a>
+    </div>
+    
+    <!-- Trading Pair Selector -->
+    <form method="get" class="pair-selector">
+        <div class="form-group">
+            <label for="symbol">Trading Pair</label>
+            <select name="symbol" id="symbol" onchange="this.form.submit()">
+                {% for pair in trading_pairs %}
+                <option value="{{ pair.symbol }}" {% if current_symbol == pair.symbol %}selected{% endif %}>{{ pair.symbol }}</option>
+                {% endfor %}
+            </select>
+        </div>
+    </form>
+    
+    <div class="row">
+        <div class="col">
+            <h2>About This Indicator</h2>
+            <div class="indicator-info">
+                <p>{{ indicator_info.description }}</p>
+                <p><strong>Range:</strong> {{ indicator_info.range }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <div class="row">
+        <div class="col">
+            <h2>Historical Values</h2>
+            {% if indicator_history %}
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Value</th>
+                        <th>Signal Direction</th>
+                        <th>Confidence</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in indicator_history %}
+                    <tr>
+                        <td>{{ item.timestamp|date:"M d, H:i" }}</td>
+                        <td>{{ item.value|floatformat:4 }}</td>
+                        <td><span class="direction direction-{{ item.signal_direction|lower }}">{{ item.signal_direction }}</span></td>
+                        <td>{{ item.confidence|floatformat:1 }}%</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p class="text-muted">No historical data available for this indicator.</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

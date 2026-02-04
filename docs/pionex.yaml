@@ -1,0 +1,229 @@
+openapi: 3.0.3
+info:
+  title: Pionex REST API (não oficial)
+  version: 0.1.0
+  description: |
+    Especificação OpenAPI não-oficial baseada na documentação pública da Pionex.
+    Ver docs originais em https://pionex-doc.gitbook.io/apidocs
+
+servers:
+  - url: https://api.pionex.com
+    description: API principal Pionex
+
+tags:
+  - name: Common
+    description: Endpoints gerais (símbolos, etc.)
+  - name: Account
+    description: Conta e saldos
+  - name: Orders
+    description: Criação e consulta de ordens
+  - name: Markets
+    description: Dados de mercado
+
+components:
+  securitySchemes:
+    PionexApiKey:
+      type: apiKey
+      in: header
+      name: PIONEX-KEY
+    PionexSignature:
+      type: apiKey
+      in: header
+      name: PIONEX-SIGNATURE
+  parameters:
+    Timestamp:
+      name: timestamp
+      in: query
+      required: true
+      schema:
+        type: integer
+        format: int64
+      description: Timestamp em milissegundos.
+    Symbol:
+      name: symbol
+      in: query
+      required: true
+      schema:
+        type: string
+      description: Par de trading, por exemplo "BTC_USDT".
+
+security:
+  - PionexApiKey: []
+    PionexSignature: []
+
+paths:
+  /api/v1/common/symbols:
+    get:
+      tags: [Common]
+      summary: Lista de símbolos
+      description: Obtém a lista de símbolos disponíveis e respetivos metadados.
+      parameters:
+        - name: symbols
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Lista de símbolos separados por vírgula (opcional).
+        - name: type
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [SPOT, PERP]
+          description: Tipo de mercado; por defeito SPOT.[web:6]
+      responses:
+        '200':
+          description: Lista de símbolos.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: boolean
+                  timestamp:
+                    type: integer
+                    format: int64
+                  data:
+                    type: array
+                    items:
+                      type: object
+                additionalProperties: true
+
+  /api/v1/account/balance:
+    get:
+      tags: [Account]
+      summary: Obter saldo
+      description: Devolve os saldos de conta para cada moeda.
+      parameters:
+        - $ref: '#/components/parameters/Timestamp'
+      responses:
+        '200':
+          description: Saldos da conta.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: boolean
+                  timestamp:
+                    type: integer
+                    format: int64
+                  data:
+                    type: array
+                    items:
+                      type: object
+                additionalProperties: true
+
+  /api/v1/trade/order:
+    post:
+      tags: [Orders]
+      summary: Criar nova ordem
+      description: Cria uma nova ordem LIMIT ou MARKET.[web:12]
+      parameters:
+        - $ref: '#/components/parameters/Timestamp'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [symbol, side, type]
+              properties:
+                symbol:
+                  type: string
+                  description: Par de trading, ex. "BTC_USDT".[web:12]
+                side:
+                  type: string
+                  enum: [BUY, SELL]
+                type:
+                  type: string
+                  enum: [LIMIT, MARKET]
+                price:
+                  type: string
+                  description: Preço (obrigatório para LIMIT).
+                quantity:
+                  type: string
+                  description: Quantidade.
+                clientOrderId:
+                  type: string
+                  description: ID de cliente opcional.
+      responses:
+        '200':
+          description: Ordem criada.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: boolean
+                  timestamp:
+                    type: integer
+                    format: int64
+                  data:
+                    type: object
+                additionalProperties: true
+
+  /api/v1/market/trades:
+    get:
+      tags: [Markets]
+      summary: Trades recentes
+      description: Lista de trades recentes para um símbolo.
+      parameters:
+        - $ref: '#/components/parameters/Symbol'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+      responses:
+        '200':
+          description: Trades recentes.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: boolean
+                  timestamp:
+                    type: integer
+                    format: int64
+                  data:
+                    type: array
+                    items:
+                      type: object
+                additionalProperties: true
+
+  /api/v1/market/depth:
+    get:
+      tags: [Markets]
+      summary: Order book (depth)
+      description: Obtém o depth para um símbolo.
+      parameters:
+        - $ref: '#/components/parameters/Symbol'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Order book.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: boolean
+                  timestamp:
+                    type: integer
+                    format: int64
+                  data:
+                    type: object
+                additionalProperties: true

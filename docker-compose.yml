@@ -1,0 +1,299 @@
+# =============================================================================
+# Crypt Master - Docker Compose Configuration
+# Automated cryptocurrency trading system with Pionex integration
+# =============================================================================
+# Target: EC2 ULTRASARDINE (t4g.small, ARM64) in eu-west-3 (Paris)
+# Registry: AWS ECR (138120257234.dkr.ecr.eu-west-3.amazonaws.com)
+# =============================================================================
+
+# =============================================================================
+# Networks - All services on the same network
+# =============================================================================
+networks:
+  crypt-network:
+    name: crypt-master-network
+    driver: bridge
+
+# =============================================================================
+# Services
+# =============================================================================
+services:
+  # ===========================================================================
+  # Django Web Application - Dashboard, REST API, Admin
+  # ===========================================================================
+  web:
+    image: 138120257234.dkr.ecr.eu-west-3.amazonaws.com/crypt-master:${IMAGE_TAG:-latest}
+    container_name: crypt-master-web
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: >
+      gunicorn config.wsgi:application
+      --bind 0.0.0.0:8000
+      --workers 2
+      --threads 2
+      --timeout 120
+      --keep-alive 5
+      --access-logfile -
+      --error-logfile -
+    ports:
+      - "8000:8000"
+    environment:
+      # Django Settings
+      - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
+      - DEBUG=${DEBUG:-False}
+      - ALLOWED_HOSTS=${ALLOWED_HOSTS:-localhost,127.0.0.1}
+      # Database
+      - DATABASE_URL=postgres://${POSTGRES_USER:-cryptmaster}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cryptmaster}
+      # Redis
+      - REDIS_URL=redis://redis:6379/0
+      # CORS
+      - CORS_ALLOWED_ORIGINS=${CORS_ALLOWED_ORIGINS:-http://localhost:3000}
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - DJANGO_LOG_LEVEL=${DJANGO_LOG_LEVEL:-INFO}
+      - APP_LOG_LEVEL=${APP_LOG_LEVEL:-INFO}
+      # Pionex API
+      - PIONEX_API_KEY=${PIONEX_API_KEY}
+      - PIONEX_API_SECRET=${PIONEX_API_SECRET}
+      # Trading Mode
+      - DRY_RUN=${DRY_RUN:-True}
+    volumes:
+      - static_files:/app/staticfiles
+      - log_files:/app/logs
+    networks:
+      - crypt-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ===========================================================================
+  # Market Analysis Agent - Continuous market analysis, signal generation
+  # ===========================================================================
+  market-agent:
+    image: 138120257234.dkr.ecr.eu-west-3.amazonaws.com/crypt-master:${IMAGE_TAG:-latest}
+    container_name: crypt-master-market-agent
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m agents.market_agent
+    environment:
+      # Database
+      - DATABASE_URL=postgres://${POSTGRES_USER:-cryptmaster}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cryptmaster}
+      # Redis
+      - REDIS_URL=redis://redis:6379/0
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - AGENT_LOG_LEVEL=${AGENT_LOG_LEVEL:-DEBUG}
+      # Pionex API
+      - PIONEX_API_KEY=${PIONEX_API_KEY}
+      - PIONEX_API_SECRET=${PIONEX_API_SECRET}
+      # Trading Mode
+      - DRY_RUN=${DRY_RUN:-True}
+      # Analysis Configuration
+      - ANALYSIS_INTERVAL_SECONDS=${ANALYSIS_INTERVAL_SECONDS:-60}
+      - RSI_PERIOD=${RSI_PERIOD:-14}
+      - MACD_FAST=${MACD_FAST:-12}
+      - MACD_SLOW=${MACD_SLOW:-26}
+      - MACD_SIGNAL=${MACD_SIGNAL:-9}
+      - BOLLINGER_PERIOD=${BOLLINGER_PERIOD:-20}
+      - BOLLINGER_STD=${BOLLINGER_STD:-2.0}
+      # Optional LLM Configuration
+      - LLM_ENABLED=${LLM_ENABLED:-False}
+      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
+    volumes:
+      - log_files:/app/logs
+    networks:
+      - crypt-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Bot Management Agent - Bot lifecycle management, performance monitoring
+  # ===========================================================================
+  bot-agent:
+    image: 138120257234.dkr.ecr.eu-west-3.amazonaws.com/crypt-master:${IMAGE_TAG:-latest}
+    container_name: crypt-master-bot-agent
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: python -m agents.bot_agent
+    environment:
+      # Database
+      - DATABASE_URL=postgres://${POSTGRES_USER:-cryptmaster}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cryptmaster}
+      # Redis
+      - REDIS_URL=redis://redis:6379/0
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      - AGENT_LOG_LEVEL=${AGENT_LOG_LEVEL:-DEBUG}
+      # Pionex API
+      - PIONEX_API_KEY=${PIONEX_API_KEY}
+      - PIONEX_API_SECRET=${PIONEX_API_SECRET}
+      # Trading Mode
+      - DRY_RUN=${DRY_RUN:-True}
+      # Risk Management
+      - RISK_MAX_POSITION_PCT=${RISK_MAX_POSITION_PCT:-0.10}
+      - RISK_MAX_PER_TRADE=${RISK_MAX_PER_TRADE:-0.02}
+      - RISK_MAX_DRAWDOWN=${RISK_MAX_DRAWDOWN:-0.20}
+      - RISK_MIN_CONFIDENCE=${RISK_MIN_CONFIDENCE:-0.85}
+      - RISK_BOT_LOSS_THRESHOLD=${RISK_BOT_LOSS_THRESHOLD:-0.10}
+    volumes:
+      - log_files:/app/logs
+    networks:
+      - crypt-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Celery Worker - Async tasks (notifications, reports)
+  # ===========================================================================
+  celery:
+    image: 138120257234.dkr.ecr.eu-west-3.amazonaws.com/crypt-master:${IMAGE_TAG:-latest}
+    container_name: crypt-master-celery
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A config worker -l info --concurrency=2
+    environment:
+      # Database
+      - DATABASE_URL=postgres://${POSTGRES_USER:-cryptmaster}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cryptmaster}
+      # Redis (Celery broker)
+      - REDIS_URL=redis://redis:6379/0
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Pionex API (for async tasks that need API access)
+      - PIONEX_API_KEY=${PIONEX_API_KEY}
+      - PIONEX_API_SECRET=${PIONEX_API_SECRET}
+      # Trading Mode
+      - DRY_RUN=${DRY_RUN:-True}
+    volumes:
+      - log_files:/app/logs
+    networks:
+      - crypt-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Celery Beat - Scheduled tasks (cleanup, daily reports)
+  # ===========================================================================
+  celery-beat:
+    image: 138120257234.dkr.ecr.eu-west-3.amazonaws.com/crypt-master:${IMAGE_TAG:-latest}
+    container_name: crypt-master-celery-beat
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    environment:
+      # Database
+      - DATABASE_URL=postgres://${POSTGRES_USER:-cryptmaster}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-cryptmaster}
+      # Redis (Celery broker)
+      - REDIS_URL=redis://redis:6379/0
+      # Logging
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - log_files:/app/logs
+      - celerybeat_schedule:/app/celerybeat
+    networks:
+      - crypt-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ===========================================================================
+  # PostgreSQL Database - Persistent data storage
+  # ===========================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: crypt-master-postgres
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB:-cryptmaster}
+      - POSTGRES_USER=${POSTGRES_USER:-cryptmaster}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - crypt-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cryptmaster} -d ${POSTGRES_DB:-cryptmaster}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===========================================================================
+  # Redis - Cache, Pub/Sub messaging, Celery broker
+  # ===========================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: crypt-master-redis
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - crypt-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+
+# =============================================================================
+# Volumes - Data persistence
+# =============================================================================
+volumes:
+  # PostgreSQL data persistence
+  postgres_data:
+    name: crypt-master-postgres-data
+    driver: local
+  
+  # Redis data persistence (AOF enabled)
+  redis_data:
+    name: crypt-master-redis-data
+    driver: local
+  
+  # Django static files (collected)
+  static_files:
+    name: crypt-master-static-files
+    driver: local
+  
+  # Application log files
+  log_files:
+    name: crypt-master-log-files
+    driver: local
+  
+  # Celery beat schedule persistence
+  celerybeat_schedule:
+    name: crypt-master-celerybeat-schedule
+    driver: local

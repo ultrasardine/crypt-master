@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Bots - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="page-header">
+        <h1>Trading Bots</h1>
+        <a href="{% url 'bots:bot_create' %}" class="btn btn-primary">Create Bot</a>
+    </div>
+    
+    <!-- Summary Stats -->
+    <div class="summary-bar">
+        <div class="summary-item">
+            <span class="summary-label">Total Bots</span>
+            <span class="summary-value">{{ total_bots }}</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Active</span>
+            <span class="summary-value text-success">{{ active_bots_count }}</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Total Invested</span>
+            <span class="summary-value">${{ total_invested|floatformat:2 }}</span>
+        </div>
+        <div class="summary-item">
+            <span class="summary-label">Total P&L</span>
+            <span class="summary-value {% if total_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                ${{ total_pnl|floatformat:2 }}
+            </span>
+        </div>
+    </div>
+    
+    <!-- Filters -->
+    <form method="get" class="filter-form">
+        <div class="form-group">
+            <label for="status">Status</label>
+            <select name="status" id="status">
+                <option value="">All Statuses</option>
+                {% for value, label in status_choices %}
+                <option value="{{ value }}" {% if current_status == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="type">Bot Type</label>
+            <select name="type" id="type">
+                <option value="">All Types</option>
+                {% for value, label in type_choices %}
+                <option value="{{ value }}" {% if current_type == value %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="mode">Mode</label>
+            <select name="mode" id="mode">
+                <option value="">All Modes</option>
+                <option value="live" {% if current_mode == "live" %}selected{% endif %}>Live</option>
+                <option value="simulated" {% if current_mode == "simulated" %}selected{% endif %}>Simulated</option>
+            </select>
+        </div>
+        
+        <div class="form-group">
+            <label for="symbol">Trading Pair</label>
+            <select name="symbol" id="symbol">
+                <option value="">All Pairs</option>
+                {% for pair in trading_pairs %}
+                <option value="{{ pair.symbol }}" {% if current_symbol == pair.symbol %}selected{% endif %}>{{ pair.symbol }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <button type="submit" class="btn btn-secondary">Filter</button>
+        <a href="{% url 'bots:bot_list' %}" class="btn btn-secondary">Clear</a>
+    </form>
+    
+    <!-- Bot Table -->
+    <table class="data-table">
+        <thead>
+            <tr>
+                <th>Bot ID</th>
+                <th>Type</th>
+                <th>Symbol</th>
+                <th>Status</th>
+                <th>Invested</th>
+                <th>Current Value</th>
+                <th>P&L</th>
+                <th>Mode</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for bot in bots %}
+            <tr>
+                <td><code>{{ bot.pionex_bot_id|truncatechars:16 }}</code></td>
+                <td><span class="bot-type bot-type-{{ bot.bot_type|lower }}">{{ bot.get_bot_type_display }}</span></td>
+                <td>{{ bot.trading_pair.symbol }}</td>
+                <td><span class="status status-{{ bot.status|lower }}">{{ bot.get_status_display }}</span></td>
+                <td>${{ bot.invested_amount|floatformat:2 }}</td>
+                <td>{% if bot.current_value %}${{ bot.current_value|floatformat:2 }}{% else %}-{% endif %}</td>
+                <td class="{% if bot.current_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                    {% if bot.current_pnl %}
+                    ${{ bot.current_pnl|floatformat:2 }}
+                    {% if bot.pnl_percent %}({{ bot.pnl_percent|floatformat:1 }}%){% endif %}
+                    {% else %}-{% endif %}
+                </td>
+                <td>
+                    {% if bot.is_simulated %}
+                    <span class="badge badge-warning">Simulated</span>
+                    {% else %}
+                    <span class="badge badge-success">Live</span>
+                    {% endif %}
+                </td>
+                <td>{{ bot.created_at|date:"M d, H:i" }}</td>
+                <td>
+                    <div class="btn-group">
+                        <a href="{% url 'bots:bot_detail' bot.pk %}" class="btn btn-sm btn-secondary">View</a>
+                        {% if bot.status == "ACTIVE" %}
+                        <form method="post" action="{% url 'bots:bot_stop' bot.pk %}" style="display:inline;">
+                            {% csrf_token %}
+                            <input type="hidden" name="reason" value="Stopped via list view">
+                            <button type="submit" class="btn btn-sm btn-danger" onclick="return confirm('Stop this bot?')">Stop</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="10" class="text-muted">No bots found matching your criteria.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    
+    {% if page_obj.has_other_pages %}
+    <nav class="pagination">
+        {% if page_obj.has_previous %}
+        <a href="?page={{ page_obj.previous_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_mode %}&mode={{ current_mode }}{% endif %}{% if current_symbol %}&symbol={{ current_symbol }}{% endif %}">Previous</a>
+        {% endif %}
+        <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        {% if page_obj.has_next %}
+        <a href="?page={{ page_obj.next_page_number }}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_type %}&type={{ current_type }}{% endif %}{% if current_mode %}&mode={{ current_mode }}{% endif %}{% if current_symbol %}&symbol={{ current_symbol }}{% endif %}">Next</a>
+        {% endif %}
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}
