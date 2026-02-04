@@ -1,6 +1,5 @@
 """Dashboard views."""
 
-from decimal import Decimal
 
 from django.views.generic import TemplateView
 
@@ -22,8 +21,9 @@ class DashboardHomeView(TemplateView):
         latest_snapshot = PortfolioSnapshot.objects.latest_live()
         context["portfolio"] = latest_snapshot
         context["portfolio_history"] = list(
-            PortfolioSnapshot.objects.recent(hours=24)
-            .values("created_at", "total_value", "drawdown")[:24]
+            PortfolioSnapshot.objects.recent(hours=24).values(
+                "created_at", "total_value", "drawdown"
+            )[:24]
         )
 
         # Active bots summary
@@ -40,9 +40,9 @@ class DashboardHomeView(TemplateView):
         # Recent signals
         context["recent_signals"] = Signal.objects.recent(hours=24)[:10]
         context["actionable_signals_count"] = Signal.objects.actionable_recent(hours=24).count()
-        context["high_confidence_signals_count"] = (
-            Signal.objects.high_confidence_recent(hours=24).count()
-        )
+        context["high_confidence_signals_count"] = Signal.objects.high_confidence_recent(
+            hours=24
+        ).count()
 
         # Trade statistics
         trade_stats = Trade.objects.statistics(simulated=False)

@@ -11,16 +11,13 @@ Requirements:
 
 from __future__ import annotations
 
-import json
 import logging
-from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
-
 
 logger = logging.getLogger(__name__)
 
@@ -52,35 +49,35 @@ def _serialize_dict(data: dict[str, Any]) -> dict[str, Any]:
 class WebSocketBroadcaster:
     """
     Utility class for broadcasting messages to WebSocket consumers.
-    
+
     Provides methods for sending various types of updates to connected
     WebSocket clients via Django Channels.
-    
+
     Example:
         >>> broadcaster = WebSocketBroadcaster()
         >>> await broadcaster.broadcast_signal_update(signal_data)
         >>> # Or synchronously:
         >>> broadcaster.broadcast_signal_update_sync(signal_data)
-    
+
     Requirements:
         - 8.1: Real-time dashboard updates
         - 10.11: Publish bot events to WebSocket
     """
-    
+
     def __init__(self):
         """Initialize the broadcaster."""
         self._channel_layer = None
-    
+
     def _get_channel_layer(self):
         """Get the channel layer (lazy initialization)."""
         if self._channel_layer is None:
             self._channel_layer = get_channel_layer()
         return self._channel_layer
-    
+
     # -------------------------------------------------------------------------
     # Portfolio Updates
     # -------------------------------------------------------------------------
-    
+
     async def broadcast_portfolio_update(
         self,
         total_value: Decimal,
@@ -91,7 +88,7 @@ class WebSocketBroadcaster:
     ) -> None:
         """
         Broadcast portfolio update to dashboard consumers.
-        
+
         Args:
             total_value: Total portfolio value
             available_balance: Available balance
@@ -100,7 +97,7 @@ class WebSocketBroadcaster:
             high_water_mark: Portfolio high water mark
         """
         channel_layer = self._get_channel_layer()
-        
+
         await channel_layer.group_send(
             DASHBOARD_GROUP,
             {
@@ -110,10 +107,10 @@ class WebSocketBroadcaster:
                 "allocated_to_bots": str(allocated_to_bots),
                 "drawdown": drawdown,
                 "high_water_mark": str(high_water_mark),
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
-    
+
     def broadcast_portfolio_update_sync(
         self,
         total_value: Decimal,
@@ -130,11 +127,11 @@ class WebSocketBroadcaster:
             drawdown,
             high_water_mark,
         )
-    
+
     # -------------------------------------------------------------------------
     # Signal Updates
     # -------------------------------------------------------------------------
-    
+
     async def broadcast_signal_update(
         self,
         symbol: str,
@@ -146,7 +143,7 @@ class WebSocketBroadcaster:
     ) -> None:
         """
         Broadcast signal update to dashboard and analysis consumers.
-        
+
         Args:
             symbol: Trading pair symbol
             direction: Signal direction (BUY/SELL/HOLD)
@@ -156,7 +153,7 @@ class WebSocketBroadcaster:
             reasoning: Signal reasoning text
         """
         channel_layer = self._get_channel_layer()
-        
+
         message = {
             "type": "signal_update",
             "symbol": symbol,
@@ -165,18 +162,18 @@ class WebSocketBroadcaster:
             "meets_threshold": meets_threshold,
             "indicators": indicators or [],
             "reasoning": reasoning,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
-        
+
         # Send to dashboard group
         await channel_layer.group_send(DASHBOARD_GROUP, message)
-        
+
         # Send to analysis group
         await channel_layer.group_send(ANALYSIS_GROUP, message)
-        
+
         # Send to symbol-specific analysis group
         await channel_layer.group_send(f"analysis_{symbol}", message)
-    
+
     def broadcast_signal_update_sync(
         self,
         symbol: str,
@@ -195,11 +192,11 @@ class WebSocketBroadcaster:
             indicators,
             reasoning,
         )
-    
+
     # -------------------------------------------------------------------------
     # Bot Updates
     # -------------------------------------------------------------------------
-    
+
     async def broadcast_bot_created(
         self,
         bot_id: str,
@@ -212,7 +209,7 @@ class WebSocketBroadcaster:
     ) -> None:
         """
         Broadcast bot created event to dashboard consumers.
-        
+
         Args:
             bot_id: Pionex bot ID
             bot_type: Type of bot (GRID/DCA)
@@ -221,12 +218,12 @@ class WebSocketBroadcaster:
             params: Bot parameters
             reasoning: Reason for creation
             is_simulated: Whether bot is simulated (dry-run)
-        
+
         Requirements:
             - 10.11: Log all bot creation events
         """
         channel_layer = self._get_channel_layer()
-        
+
         await channel_layer.group_send(
             BOT_EVENTS_GROUP,
             {
@@ -238,10 +235,10 @@ class WebSocketBroadcaster:
                 "params": _serialize_dict(params),
                 "reasoning": reasoning,
                 "is_simulated": is_simulated,
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
-        
+
         # Also send to dashboard group
         await channel_layer.group_send(
             DASHBOARD_GROUP,
@@ -254,10 +251,10 @@ class WebSocketBroadcaster:
                 "params": _serialize_dict(params),
                 "reasoning": reasoning,
                 "is_simulated": is_simulated,
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
-    
+
     def broadcast_bot_created_sync(
         self,
         bot_id: str,
@@ -278,7 +275,7 @@ class WebSocketBroadcaster:
             reasoning,
             is_simulated,
         )
-    
+
     async def broadcast_bot_stopped(
         self,
         bot_id: str,
@@ -289,19 +286,19 @@ class WebSocketBroadcaster:
     ) -> None:
         """
         Broadcast bot stopped event to dashboard consumers.
-        
+
         Args:
             bot_id: Pionex bot ID
             symbol: Trading pair symbol
             reason: Reason for stopping
             final_pnl: Final P&L (if available)
             is_simulated: Whether bot was simulated
-        
+
         Requirements:
             - 10.11: Log all bot termination events
         """
         channel_layer = self._get_channel_layer()
-        
+
         message = {
             "type": "bot_stopped",
             "bot_id": bot_id,
@@ -309,12 +306,12 @@ class WebSocketBroadcaster:
             "reason": reason,
             "final_pnl": str(final_pnl) if final_pnl is not None else None,
             "is_simulated": is_simulated,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
-        
+
         await channel_layer.group_send(BOT_EVENTS_GROUP, message)
         await channel_layer.group_send(DASHBOARD_GROUP, message)
-    
+
     def broadcast_bot_stopped_sync(
         self,
         bot_id: str,
@@ -331,7 +328,7 @@ class WebSocketBroadcaster:
             final_pnl,
             is_simulated,
         )
-    
+
     async def broadcast_bot_performance(
         self,
         bot_id: str,
@@ -343,7 +340,7 @@ class WebSocketBroadcaster:
     ) -> None:
         """
         Broadcast bot performance update to dashboard consumers.
-        
+
         Args:
             bot_id: Pionex bot ID
             symbol: Trading pair symbol
@@ -353,7 +350,7 @@ class WebSocketBroadcaster:
             is_underperforming: Whether bot is underperforming
         """
         channel_layer = self._get_channel_layer()
-        
+
         message = {
             "type": "bot_performance",
             "bot_id": bot_id,
@@ -362,12 +359,12 @@ class WebSocketBroadcaster:
             "pnl_percent": pnl_percent,
             "current_value": str(current_value),
             "is_underperforming": is_underperforming,
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
-        
+
         await channel_layer.group_send(BOT_EVENTS_GROUP, message)
         await channel_layer.group_send(DASHBOARD_GROUP, message)
-    
+
     def broadcast_bot_performance_sync(
         self,
         bot_id: str,
@@ -386,7 +383,7 @@ class WebSocketBroadcaster:
             current_value,
             is_underperforming,
         )
-    
+
     async def broadcast_bot_update(
         self,
         bot_id: str,
@@ -399,7 +396,7 @@ class WebSocketBroadcaster:
     ) -> None:
         """
         Broadcast general bot status update to dashboard consumers.
-        
+
         Args:
             bot_id: Pionex bot ID
             status: Bot status (ACTIVE/STOPPED/ERROR)
@@ -410,7 +407,7 @@ class WebSocketBroadcaster:
             pnl_percent: P&L percentage
         """
         channel_layer = self._get_channel_layer()
-        
+
         await channel_layer.group_send(
             DASHBOARD_GROUP,
             {
@@ -422,10 +419,10 @@ class WebSocketBroadcaster:
                 "current_value": str(current_value),
                 "pnl": str(pnl),
                 "pnl_percent": pnl_percent,
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
-    
+
     def broadcast_bot_update_sync(
         self,
         bot_id: str,
@@ -446,11 +443,11 @@ class WebSocketBroadcaster:
             pnl,
             pnl_percent,
         )
-    
+
     # -------------------------------------------------------------------------
     # Indicator Updates
     # -------------------------------------------------------------------------
-    
+
     async def broadcast_indicator_update(
         self,
         symbol: str,
@@ -458,26 +455,26 @@ class WebSocketBroadcaster:
     ) -> None:
         """
         Broadcast indicator update to analysis consumers.
-        
+
         Args:
             symbol: Trading pair symbol
             indicators: Dict of indicator name -> value
         """
         channel_layer = self._get_channel_layer()
-        
+
         message = {
             "type": "indicator_update",
             "symbol": symbol,
             "indicators": _serialize_dict(indicators),
-            "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
         }
-        
+
         # Send to general analysis group
         await channel_layer.group_send(ANALYSIS_GROUP, message)
-        
+
         # Send to symbol-specific group
         await channel_layer.group_send(f"analysis_{symbol}", message)
-    
+
     def broadcast_indicator_update_sync(
         self,
         symbol: str,
@@ -485,7 +482,7 @@ class WebSocketBroadcaster:
     ) -> None:
         """Synchronous version of broadcast_indicator_update."""
         async_to_sync(self.broadcast_indicator_update)(symbol, indicators)
-    
+
     async def broadcast_sentiment_update(
         self,
         fear_greed_index: int,
@@ -494,14 +491,14 @@ class WebSocketBroadcaster:
     ) -> None:
         """
         Broadcast sentiment update to analysis consumers.
-        
+
         Args:
             fear_greed_index: Fear & Greed Index value (0-100)
             signal: Sentiment signal (BUY/SELL/HOLD)
             classification: Text classification (Extreme Fear, etc.)
         """
         channel_layer = self._get_channel_layer()
-        
+
         await channel_layer.group_send(
             ANALYSIS_GROUP,
             {
@@ -509,10 +506,10 @@ class WebSocketBroadcaster:
                 "fear_greed_index": fear_greed_index,
                 "signal": signal,
                 "classification": classification,
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
-    
+
     def broadcast_sentiment_update_sync(
         self,
         fear_greed_index: int,
@@ -525,11 +522,11 @@ class WebSocketBroadcaster:
             signal,
             classification,
         )
-    
+
     # -------------------------------------------------------------------------
     # Alerts
     # -------------------------------------------------------------------------
-    
+
     async def broadcast_alert(
         self,
         level: str,
@@ -539,7 +536,7 @@ class WebSocketBroadcaster:
     ) -> None:
         """
         Broadcast alert to dashboard consumers.
-        
+
         Args:
             level: Alert level (info/warning/error/critical)
             title: Alert title
@@ -547,7 +544,7 @@ class WebSocketBroadcaster:
             source: Source of the alert
         """
         channel_layer = self._get_channel_layer()
-        
+
         await channel_layer.group_send(
             ALERTS_GROUP,
             {
@@ -556,10 +553,10 @@ class WebSocketBroadcaster:
                 "title": title,
                 "message": message,
                 "source": source,
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
-        
+
         # Also send to dashboard group
         await channel_layer.group_send(
             DASHBOARD_GROUP,
@@ -569,10 +566,10 @@ class WebSocketBroadcaster:
                 "title": title,
                 "message": message,
                 "source": source,
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
-    
+
     def broadcast_alert_sync(
         self,
         level: str,
@@ -582,11 +579,11 @@ class WebSocketBroadcaster:
     ) -> None:
         """Synchronous version of broadcast_alert."""
         async_to_sync(self.broadcast_alert)(level, title, message, source)
-    
+
     # -------------------------------------------------------------------------
     # Trade Updates
     # -------------------------------------------------------------------------
-    
+
     async def broadcast_trade_executed(
         self,
         trade_id: int,
@@ -598,7 +595,7 @@ class WebSocketBroadcaster:
     ) -> None:
         """
         Broadcast trade executed notification to dashboard consumers.
-        
+
         Args:
             trade_id: Trade ID
             symbol: Trading pair symbol
@@ -608,7 +605,7 @@ class WebSocketBroadcaster:
             is_simulated: Whether trade is simulated
         """
         channel_layer = self._get_channel_layer()
-        
+
         await channel_layer.group_send(
             DASHBOARD_GROUP,
             {
@@ -619,10 +616,10 @@ class WebSocketBroadcaster:
                 "price": str(price),
                 "quantity": str(quantity),
                 "is_simulated": is_simulated,
-                "timestamp": datetime.now(tz=timezone.utc).isoformat(),
+                "timestamp": datetime.now(tz=UTC).isoformat(),
             },
         )
-    
+
     def broadcast_trade_executed_sync(
         self,
         trade_id: int,

@@ -78,6 +78,13 @@ target-version = "py313"
 select = ["E", "F", "I", "N", "W", "UP"]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+"agents/*.py" = ["E402"]  # Allow imports after django.setup()
+"tests/**/*.py" = ["E402", "F841"]  # Allow imports after django.setup() and unused variables in tests
+"lib/backtesting/__init__.py" = ["F401", "F841"]  # Allow unused imports for public API
+"lib/logging/__init__.py" = ["F401", "F841"]  # Allow unused imports
+"lib/simulation/__init__.py" = ["F401"]  # Allow unused imports
+
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "config.test_settings"
 python_files = ["test_*.py", "*_test.py"]

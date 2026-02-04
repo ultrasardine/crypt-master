@@ -40,7 +40,7 @@ class TestAuthHeaders:
             timestamp=1234567890000,
         )
         result = headers.to_headers()
-        
+
         assert result == {
             "PIONEX-KEY": "my_api_key",
             "PIONEX-SIGNATURE": "abc123signature",
@@ -91,7 +91,7 @@ class TestTimestampGeneration:
         before = int(time.time() * 1000)
         timestamp = PionexAuthenticator.generate_timestamp()
         after = int(time.time() * 1000)
-        
+
         assert before <= timestamp <= after
 
     def test_generate_timestamp_is_integer(self) -> None:
@@ -107,7 +107,7 @@ class TestSignatureComputation:
         """Test signature is a hexadecimal string."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
         signature = auth.compute_signature("test_query_string")
-        
+
         # Should be 64 hex characters (256 bits = 32 bytes = 64 hex chars)
         assert len(signature) == 64
         assert all(c in "0123456789abcdef" for c in signature)
@@ -116,27 +116,27 @@ class TestSignatureComputation:
         """Test signature matches manually computed HMAC-SHA256."""
         api_secret = "my_secret_key"
         query_string = "symbol=BTC_USDT&timestamp=1234567890000"
-        
+
         auth = PionexAuthenticator(api_key="key", api_secret=api_secret)
         signature = auth.compute_signature(query_string)
-        
+
         # Compute expected signature manually
         expected = hmac.new(
             key=api_secret.encode("utf-8"),
             msg=query_string.encode("utf-8"),
             digestmod=hashlib.sha256,
         ).hexdigest()
-        
+
         assert signature == expected
 
     def test_compute_signature_deterministic(self) -> None:
         """Test same inputs produce same signature."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
         query_string = "param1=value1&param2=value2"
-        
+
         sig1 = auth.compute_signature(query_string)
         sig2 = auth.compute_signature(query_string)
-        
+
         assert sig1 == sig2
 
     def test_compute_signature_different_secrets_differ(self) -> None:
@@ -144,19 +144,19 @@ class TestSignatureComputation:
         auth1 = PionexAuthenticator(api_key="key", api_secret="secret1")
         auth2 = PionexAuthenticator(api_key="key", api_secret="secret2")
         query_string = "test=value"
-        
+
         sig1 = auth1.compute_signature(query_string)
         sig2 = auth2.compute_signature(query_string)
-        
+
         assert sig1 != sig2
 
     def test_compute_signature_different_queries_differ(self) -> None:
         """Test different query strings produce different signatures."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
-        
+
         sig1 = auth.compute_signature("query1=value1")
         sig2 = auth.compute_signature("query2=value2")
-        
+
         assert sig1 != sig2
 
 
@@ -167,7 +167,7 @@ class TestQueryStringBuilding:
         """Test query string with only timestamp."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
         query = auth.build_query_string(params=None, timestamp=1234567890000)
-        
+
         assert query == "timestamp=1234567890000"
 
     def test_build_query_string_with_params(self) -> None:
@@ -177,7 +177,7 @@ class TestQueryStringBuilding:
             params={"symbol": "BTC_USDT"},
             timestamp=1234567890000,
         )
-        
+
         # Params should be sorted alphabetically
         assert query == "symbol=BTC_USDT&timestamp=1234567890000"
 
@@ -188,18 +188,16 @@ class TestQueryStringBuilding:
             params={"zebra": "z", "apple": "a", "middle": "m"},
             timestamp=1234567890000,
         )
-        
+
         assert query == "apple=a&middle=m&timestamp=1234567890000&zebra=z"
 
     def test_build_query_string_generates_timestamp_if_not_provided(self) -> None:
         """Test timestamp is generated if not provided."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
-        
-        with patch.object(
-            PionexAuthenticator, "generate_timestamp", return_value=9999999999999
-        ):
+
+        with patch.object(PionexAuthenticator, "generate_timestamp", return_value=9999999999999):
             query = auth.build_query_string(params={"test": "value"})
-        
+
         assert "timestamp=9999999999999" in query
 
     def test_build_query_string_url_encodes_special_chars(self) -> None:
@@ -209,7 +207,7 @@ class TestQueryStringBuilding:
             params={"param": "value with spaces"},
             timestamp=1000,
         )
-        
+
         assert "value+with+spaces" in query or "value%20with%20spaces" in query
 
 
@@ -220,33 +218,33 @@ class TestGenerateAuth:
         """Test generate_auth returns AuthHeaders instance."""
         auth = PionexAuthenticator(api_key="test_key", api_secret="test_secret")
         result = auth.generate_auth(timestamp=1234567890000)
-        
+
         assert isinstance(result, AuthHeaders)
 
     def test_generate_auth_includes_api_key(self) -> None:
         """Test generated auth includes the API key."""
         auth = PionexAuthenticator(api_key="my_api_key", api_secret="secret")
         result = auth.generate_auth(timestamp=1000)
-        
+
         assert result.pionex_key == "my_api_key"
 
     def test_generate_auth_includes_timestamp(self) -> None:
         """Test generated auth includes the timestamp."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
         result = auth.generate_auth(timestamp=1234567890000)
-        
+
         assert result.timestamp == 1234567890000
 
     def test_generate_auth_computes_valid_signature(self) -> None:
         """Test generated signature is valid HMAC-SHA256."""
         api_secret = "my_secret"
         auth = PionexAuthenticator(api_key="key", api_secret=api_secret)
-        
+
         result = auth.generate_auth(
             params={"symbol": "BTC_USDT"},
             timestamp=1234567890000,
         )
-        
+
         # Verify signature manually
         query_string = "symbol=BTC_USDT&timestamp=1234567890000"
         expected_sig = hmac.new(
@@ -254,17 +252,17 @@ class TestGenerateAuth:
             msg=query_string.encode("utf-8"),
             digestmod=hashlib.sha256,
         ).hexdigest()
-        
+
         assert result.pionex_signature == expected_sig
 
     def test_generate_auth_generates_timestamp_if_not_provided(self) -> None:
         """Test timestamp is auto-generated if not provided."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
-        
+
         before = int(time.time() * 1000)
         result = auth.generate_auth()
         after = int(time.time() * 1000)
-        
+
         assert before <= result.timestamp <= after
 
 
@@ -275,7 +273,7 @@ class TestSignRequest:
         """Test sign_request returns tuple of headers and params."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
         result = auth.sign_request(timestamp=1000)
-        
+
         assert isinstance(result, tuple)
         assert len(result) == 2
 
@@ -283,7 +281,7 @@ class TestSignRequest:
         """Test returned headers contain PIONEX-KEY and PIONEX-SIGNATURE."""
         auth = PionexAuthenticator(api_key="my_key", api_secret="secret")
         headers, _ = auth.sign_request(timestamp=1000)
-        
+
         assert "PIONEX-KEY" in headers
         assert "PIONEX-SIGNATURE" in headers
         assert headers["PIONEX-KEY"] == "my_key"
@@ -292,7 +290,7 @@ class TestSignRequest:
         """Test returned params contain timestamp."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
         _, params = auth.sign_request(timestamp=1234567890000)
-        
+
         assert "timestamp" in params
         assert params["timestamp"] == 1234567890000
 
@@ -303,7 +301,7 @@ class TestSignRequest:
             params={"symbol": "BTC_USDT", "limit": 100},
             timestamp=1000,
         )
-        
+
         assert params["symbol"] == "BTC_USDT"
         assert params["limit"] == 100
         assert params["timestamp"] == 1000
@@ -312,8 +310,8 @@ class TestSignRequest:
         """Test original params dict is not modified."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
         original_params = {"symbol": "BTC_USDT"}
-        
+
         auth.sign_request(params=original_params, timestamp=1000)
-        
+
         assert "timestamp" not in original_params
         assert original_params == {"symbol": "BTC_USDT"}

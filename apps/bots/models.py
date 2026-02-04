@@ -4,7 +4,6 @@ from decimal import Decimal
 
 from django.db import models
 from django.db.models import QuerySet, Sum
-from django.utils import timezone
 
 from apps.core.models import TimeStampedModel, TradingPair
 

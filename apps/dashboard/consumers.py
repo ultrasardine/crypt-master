@@ -18,7 +18,6 @@ from typing import Any
 
 from channels.generic.websocket import AsyncWebsocketConsumer
 
-
 logger = logging.getLogger(__name__)
 
 
@@ -32,15 +31,15 @@ ALERTS_GROUP = "alerts"
 class DashboardConsumer(AsyncWebsocketConsumer):
     """
     WebSocket consumer for real-time dashboard updates.
-    
+
     Handles portfolio updates, signal updates, bot status changes,
     and system alerts for the main dashboard view.
-    
+
     Groups:
         - dashboard: General dashboard updates
         - bot_events: Bot lifecycle events
         - alerts: System alerts and notifications
-    
+
     Message Types (outbound):
         - portfolio_update: Portfolio value and allocation changes
         - signal_update: New trading signals
@@ -50,7 +49,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
         - bot_performance: Bot performance update
         - alert: System alerts
         - pong: Response to ping
-    
+
     Requirements:
         - 8.1: Real-time dashboard updates
         - 10.11: Publish bot events to WebSocket
@@ -62,9 +61,9 @@ class DashboardConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(DASHBOARD_GROUP, self.channel_name)
         await self.channel_layer.group_add(BOT_EVENTS_GROUP, self.channel_name)
         await self.channel_layer.group_add(ALERTS_GROUP, self.channel_name)
-        
+
         await self.accept()
-        
+
         logger.debug(f"Dashboard WebSocket connected: {self.channel_name}")
 
     async def disconnect(self, close_code: int) -> None:
@@ -73,13 +72,13 @@ class DashboardConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_discard(DASHBOARD_GROUP, self.channel_name)
         await self.channel_layer.group_discard(BOT_EVENTS_GROUP, self.channel_name)
         await self.channel_layer.group_discard(ALERTS_GROUP, self.channel_name)
-        
+
         logger.debug(f"Dashboard WebSocket disconnected: {self.channel_name}")
 
     async def receive(self, text_data: str) -> None:
         """
         Handle incoming WebSocket messages.
-        
+
         Supported message types:
             - ping: Health check, responds with pong
             - subscribe: Subscribe to specific symbol updates
@@ -90,40 +89,52 @@ class DashboardConsumer(AsyncWebsocketConsumer):
         except json.JSONDecodeError:
             await self._send_error("Invalid JSON")
             return
-        
+
         message_type = data.get("type", "")
 
         if message_type == "ping":
             await self.send(text_data=json.dumps({"type": "pong"}))
-        
+
         elif message_type == "subscribe":
             # Subscribe to symbol-specific updates
             symbol = data.get("symbol")
             if symbol:
                 group_name = f"symbol_{symbol}"
                 await self.channel_layer.group_add(group_name, self.channel_name)
-                await self.send(text_data=json.dumps({
-                    "type": "subscribed",
-                    "symbol": symbol,
-                }))
-        
+                await self.send(
+                    text_data=json.dumps(
+                        {
+                            "type": "subscribed",
+                            "symbol": symbol,
+                        }
+                    )
+                )
+
         elif message_type == "unsubscribe":
             # Unsubscribe from symbol-specific updates
             symbol = data.get("symbol")
             if symbol:
                 group_name = f"symbol_{symbol}"
                 await self.channel_layer.group_discard(group_name, self.channel_name)
-                await self.send(text_data=json.dumps({
-                    "type": "unsubscribed",
-                    "symbol": symbol,
-                }))
+                await self.send(
+                    text_data=json.dumps(
+                        {
+                            "type": "unsubscribed",
+                            "symbol": symbol,
+                        }
+                    )
+                )
 
     async def _send_error(self, message: str) -> None:
         """Send an error message to the client."""
-        await self.send(text_data=json.dumps({
-            "type": "error",
-            "message": message,
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "error",
+                    "message": message,
+                }
+            )
+        )
 
     # -------------------------------------------------------------------------
     # Portfolio Updates
@@ -132,7 +143,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
     async def portfolio_update(self, event: dict[str, Any]) -> None:
         """
         Send portfolio update to WebSocket.
-        
+
         Event data:
             - total_value: Total portfolio value
             - available_balance: Available balance
@@ -150,7 +161,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
     async def signal_update(self, event: dict[str, Any]) -> None:
         """
         Send signal update to WebSocket.
-        
+
         Event data:
             - symbol: Trading pair symbol
             - direction: Signal direction (BUY/SELL/HOLD)
@@ -168,7 +179,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
     async def bot_update(self, event: dict[str, Any]) -> None:
         """
         Send bot status update to WebSocket.
-        
+
         Event data:
             - bot_id: Pionex bot ID
             - status: Bot status (ACTIVE/STOPPED/ERROR)
@@ -183,7 +194,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
     async def bot_created(self, event: dict[str, Any]) -> None:
         """
         Send bot created notification to WebSocket.
-        
+
         Event data:
             - bot_id: Pionex bot ID
             - bot_type: Type of bot (GRID/DCA)
@@ -192,7 +203,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
             - params: Bot parameters
             - reasoning: Reason for creation
             - timestamp: Creation timestamp
-        
+
         Requirements:
             - 10.11: Log all bot creation events
         """
@@ -201,14 +212,14 @@ class DashboardConsumer(AsyncWebsocketConsumer):
     async def bot_stopped(self, event: dict[str, Any]) -> None:
         """
         Send bot stopped notification to WebSocket.
-        
+
         Event data:
             - bot_id: Pionex bot ID
             - symbol: Trading pair symbol
             - reason: Reason for stopping
             - final_pnl: Final P&L
             - timestamp: Stop timestamp
-        
+
         Requirements:
             - 10.11: Log all bot termination events
         """
@@ -217,7 +228,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
     async def bot_performance(self, event: dict[str, Any]) -> None:
         """
         Send bot performance update to WebSocket.
-        
+
         Event data:
             - bot_id: Pionex bot ID
             - symbol: Trading pair symbol
@@ -235,7 +246,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
     async def alert(self, event: dict[str, Any]) -> None:
         """
         Send alert to WebSocket.
-        
+
         Event data:
             - level: Alert level (info/warning/error/critical)
             - title: Alert title
@@ -248,7 +259,7 @@ class DashboardConsumer(AsyncWebsocketConsumer):
     async def trade_executed(self, event: dict[str, Any]) -> None:
         """
         Send trade executed notification to WebSocket.
-        
+
         Event data:
             - trade_id: Trade ID
             - symbol: Trading pair symbol
@@ -264,20 +275,20 @@ class DashboardConsumer(AsyncWebsocketConsumer):
 class AnalysisConsumer(AsyncWebsocketConsumer):
     """
     WebSocket consumer for real-time analysis updates.
-    
+
     Handles live indicator updates and analysis data for the
     market analysis view.
-    
+
     Groups:
         - analysis: General analysis updates
         - analysis_{symbol}: Symbol-specific analysis updates
-    
+
     Message Types (outbound):
         - indicator_update: Technical indicator values
         - sentiment_update: Sentiment analysis data
         - analysis_complete: Full analysis cycle complete
         - pong: Response to ping
-    
+
     Requirements:
         - 8.1: Real-time indicator updates
     """
@@ -290,29 +301,29 @@ class AnalysisConsumer(AsyncWebsocketConsumer):
         """Handle WebSocket connection."""
         # Join general analysis group
         await self.channel_layer.group_add(ANALYSIS_GROUP, self.channel_name)
-        
+
         await self.accept()
-        
+
         logger.debug(f"Analysis WebSocket connected: {self.channel_name}")
 
     async def disconnect(self, close_code: int) -> None:
         """Handle WebSocket disconnection."""
         # Leave general analysis group
         await self.channel_layer.group_discard(ANALYSIS_GROUP, self.channel_name)
-        
+
         # Leave all symbol-specific groups
         for symbol in self._subscribed_symbols:
             group_name = f"analysis_{symbol}"
             await self.channel_layer.group_discard(group_name, self.channel_name)
-        
+
         self._subscribed_symbols.clear()
-        
+
         logger.debug(f"Analysis WebSocket disconnected: {self.channel_name}")
 
     async def receive(self, text_data: str) -> None:
         """
         Handle incoming WebSocket messages.
-        
+
         Supported message types:
             - ping: Health check, responds with pong
             - subscribe: Subscribe to symbol-specific analysis
@@ -323,40 +334,52 @@ class AnalysisConsumer(AsyncWebsocketConsumer):
         except json.JSONDecodeError:
             await self._send_error("Invalid JSON")
             return
-        
+
         message_type = data.get("type", "")
 
         if message_type == "ping":
             await self.send(text_data=json.dumps({"type": "pong"}))
-        
+
         elif message_type == "subscribe":
             symbol = data.get("symbol")
             if symbol and symbol not in self._subscribed_symbols:
                 group_name = f"analysis_{symbol}"
                 await self.channel_layer.group_add(group_name, self.channel_name)
                 self._subscribed_symbols.add(symbol)
-                await self.send(text_data=json.dumps({
-                    "type": "subscribed",
-                    "symbol": symbol,
-                }))
-        
+                await self.send(
+                    text_data=json.dumps(
+                        {
+                            "type": "subscribed",
+                            "symbol": symbol,
+                        }
+                    )
+                )
+
         elif message_type == "unsubscribe":
             symbol = data.get("symbol")
             if symbol and symbol in self._subscribed_symbols:
                 group_name = f"analysis_{symbol}"
                 await self.channel_layer.group_discard(group_name, self.channel_name)
                 self._subscribed_symbols.discard(symbol)
-                await self.send(text_data=json.dumps({
-                    "type": "unsubscribed",
-                    "symbol": symbol,
-                }))
+                await self.send(
+                    text_data=json.dumps(
+                        {
+                            "type": "unsubscribed",
+                            "symbol": symbol,
+                        }
+                    )
+                )
 
     async def _send_error(self, message: str) -> None:
         """Send an error message to the client."""
-        await self.send(text_data=json.dumps({
-            "type": "error",
-            "message": message,
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "error",
+                    "message": message,
+                }
+            )
+        )
 
     # -------------------------------------------------------------------------
     # Indicator Updates
@@ -365,7 +388,7 @@ class AnalysisConsumer(AsyncWebsocketConsumer):
     async def indicator_update(self, event: dict[str, Any]) -> None:
         """
         Send indicator update to WebSocket.
-        
+
         Event data:
             - symbol: Trading pair symbol
             - indicators: Dict of indicator name -> value
@@ -376,7 +399,7 @@ class AnalysisConsumer(AsyncWebsocketConsumer):
     async def sentiment_update(self, event: dict[str, Any]) -> None:
         """
         Send sentiment update to WebSocket.
-        
+
         Event data:
             - fear_greed_index: Fear & Greed Index value (0-100)
             - signal: Sentiment signal (BUY/SELL/HOLD)
@@ -388,7 +411,7 @@ class AnalysisConsumer(AsyncWebsocketConsumer):
     async def analysis_complete(self, event: dict[str, Any]) -> None:
         """
         Send analysis complete notification to WebSocket.
-        
+
         Event data:
             - symbol: Trading pair symbol
             - signal: Generated signal data
@@ -401,7 +424,7 @@ class AnalysisConsumer(AsyncWebsocketConsumer):
     async def signal_update(self, event: dict[str, Any]) -> None:
         """
         Send signal update to WebSocket (for analysis view).
-        
+
         Event data:
             - symbol: Trading pair symbol
             - direction: Signal direction

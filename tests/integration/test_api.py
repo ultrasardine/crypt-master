@@ -1,6 +1,5 @@
 """Integration tests for REST API endpoints."""
 
-import json
 from decimal import Decimal
 
 import pytest
@@ -91,6 +90,7 @@ def signal(db, trading_pair):
 def executed_signal(db, trading_pair):
     """Create an executed signal."""
     from django.utils import timezone
+
     return Signal.objects.create(
         trading_pair=trading_pair,
         direction=SignalDirection.SELL,
@@ -154,6 +154,7 @@ def trade(db, trading_pair, signal):
 def closed_trade(db, trading_pair):
     """Create a closed trade with P&L."""
     from django.utils import timezone
+
     return Trade.objects.create(
         trading_pair=trading_pair,
         side=TradeSide.SELL,
@@ -185,7 +186,7 @@ class TestPortfolioAPI:
         """Test getting current portfolio snapshot."""
         url = reverse("api:portfolio")
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert Decimal(response.data["total_value"]) == Decimal("10000.00")
         assert response.data["is_simulated"] is False
@@ -194,7 +195,7 @@ class TestPortfolioAPI:
         """Test getting simulated portfolio snapshot."""
         url = reverse("api:portfolio")
         response = api_client.get(url, {"simulated": "true"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert Decimal(response.data["total_value"]) == Decimal("50000.00")
         assert response.data["is_simulated"] is True
@@ -203,14 +204,14 @@ class TestPortfolioAPI:
         """Test getting portfolio when none exists."""
         url = reverse("api:portfolio")
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_get_portfolio_history(self, api_client, portfolio_snapshot):
         """Test getting portfolio history."""
         url = reverse("api:portfolio_history")
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
 
@@ -222,7 +223,7 @@ class TestTradingPairAPI:
         """Test listing trading pairs."""
         url = reverse("api:trading_pair_list")
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 2
 
@@ -230,7 +231,7 @@ class TestTradingPairAPI:
         """Test filtering trading pairs by quote currency."""
         url = reverse("api:trading_pair_list")
         response = api_client.get(url, {"quote": "USDT"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 2
 
@@ -238,7 +239,7 @@ class TestTradingPairAPI:
         """Test filtering trading pairs by base currency."""
         url = reverse("api:trading_pair_list")
         response = api_client.get(url, {"base": "BTC"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["symbol"] == "BTC_USDT"
@@ -251,7 +252,7 @@ class TestSignalAPI:
         """Test listing signals."""
         url = reverse("api:signal_list")
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 2
 
@@ -259,7 +260,7 @@ class TestSignalAPI:
         """Test filtering signals by direction."""
         url = reverse("api:signal_list")
         response = api_client.get(url, {"direction": "BUY"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["direction"] == "BUY"
@@ -268,7 +269,7 @@ class TestSignalAPI:
         """Test filtering signals by minimum confidence."""
         url = reverse("api:signal_list")
         response = api_client.get(url, {"min_confidence": "90"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["confidence"] >= 90
@@ -277,7 +278,7 @@ class TestSignalAPI:
         """Test filtering signals by executed status."""
         url = reverse("api:signal_list")
         response = api_client.get(url, {"executed": "true"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["executed"] is True
@@ -286,7 +287,7 @@ class TestSignalAPI:
         """Test getting signal details."""
         url = reverse("api:signal_detail", kwargs={"pk": signal.pk})
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data["direction"] == "BUY"
         assert response.data["confidence"] == 87.5
@@ -296,7 +297,7 @@ class TestSignalAPI:
         """Test getting non-existent signal."""
         url = reverse("api:signal_detail", kwargs={"pk": 99999})
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -307,7 +308,7 @@ class TestBotAPI:
         """Test listing bots."""
         url = reverse("api:bot_list")
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 2
 
@@ -315,7 +316,7 @@ class TestBotAPI:
         """Test filtering bots by status."""
         url = reverse("api:bot_list")
         response = api_client.get(url, {"status": "ACTIVE"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert all(b["status"] == "ACTIVE" for b in response.data["results"])
 
@@ -323,7 +324,7 @@ class TestBotAPI:
         """Test filtering bots by type."""
         url = reverse("api:bot_list")
         response = api_client.get(url, {"type": "GRID"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["bot_type"] == "GRID"
@@ -332,7 +333,7 @@ class TestBotAPI:
         """Test filtering bots by simulated status."""
         url = reverse("api:bot_list")
         response = api_client.get(url, {"simulated": "true"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["is_simulated"] is True
@@ -348,10 +349,10 @@ class TestBotAPI:
             "is_simulated": True,
         }
         response = api_client.post(url, data, format="json")
-        
+
         assert response.status_code == status.HTTP_201_CREATED
         assert Bot.objects.count() == 1
-        
+
         bot = Bot.objects.first()
         assert bot.status == BotStatus.ACTIVE
         assert bot.is_simulated is True
@@ -366,7 +367,7 @@ class TestBotAPI:
             "invested_amount": "1000.00",
         }
         response = api_client.post(url, data, format="json")
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_create_bot_negative_amount(self, api_client, trading_pair):
@@ -378,14 +379,14 @@ class TestBotAPI:
             "invested_amount": "-100.00",
         }
         response = api_client.post(url, data, format="json")
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_get_bot_detail(self, api_client, bot):
         """Test getting bot details."""
         url = reverse("api:bot_detail", kwargs={"pk": bot.pk})
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data["pionex_bot_id"] == "bot_test123"
         assert response.data["bot_type"] == "GRID"
@@ -394,9 +395,9 @@ class TestBotAPI:
         """Test stopping a bot."""
         url = reverse("api:bot_detail", kwargs={"pk": bot.pk})
         response = api_client.delete(url, {"reason": "Test stop"}, format="json")
-        
+
         assert response.status_code == status.HTTP_200_OK
-        
+
         bot.refresh_from_db()
         assert bot.status == BotStatus.STOPPED
         assert bot.stop_reason == "Test stop"
@@ -406,10 +407,10 @@ class TestBotAPI:
         """Test stopping an already stopped bot."""
         bot.status = BotStatus.STOPPED
         bot.save()
-        
+
         url = reverse("api:bot_detail", kwargs={"pk": bot.pk})
         response = api_client.delete(url)
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
@@ -420,7 +421,7 @@ class TestTradeAPI:
         """Test listing trades."""
         url = reverse("api:trade_list")
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 2
 
@@ -428,7 +429,7 @@ class TestTradeAPI:
         """Test filtering trades by side."""
         url = reverse("api:trade_list")
         response = api_client.get(url, {"side": "BUY"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["side"] == "BUY"
@@ -437,7 +438,7 @@ class TestTradeAPI:
         """Test filtering trades by open/closed status."""
         url = reverse("api:trade_list")
         response = api_client.get(url, {"status": "closed"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 1
         assert response.data["results"][0]["exit_price"] is not None
@@ -446,7 +447,7 @@ class TestTradeAPI:
         """Test getting trade details."""
         url = reverse("api:trade_detail", kwargs={"pk": trade.pk})
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data["side"] == "BUY"
         assert Decimal(response.data["entry_price"]) == Decimal("45000.00")
@@ -455,7 +456,7 @@ class TestTradeAPI:
         """Test getting trade statistics."""
         url = reverse("api:trade_statistics")
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data["total_trades"] == 2
         assert response.data["closed_trades"] == 1
@@ -469,7 +470,7 @@ class TestAnalysisAPI:
         """Test getting analysis for a symbol."""
         url = reverse("api:analysis", kwargs={"symbol": "BTC_USDT"})
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data["direction"] == "BUY"
 
@@ -477,14 +478,14 @@ class TestAnalysisAPI:
         """Test analysis endpoint is case insensitive."""
         url = reverse("api:analysis", kwargs={"symbol": "btc_usdt"})
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
 
     def test_get_analysis_not_found(self, api_client, trading_pair):
         """Test getting analysis for symbol with no signals."""
         url = reverse("api:analysis", kwargs={"symbol": "ETH_USDT"})
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -495,7 +496,7 @@ class TestConfigAPI:
         """Test getting all configuration."""
         url = reverse("api:config")
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data) == 1
         assert response.data[0]["key"] == "min_confidence"
@@ -504,7 +505,7 @@ class TestConfigAPI:
         """Test getting specific configuration by key."""
         url = reverse("api:config")
         response = api_client.get(url, {"key": "min_confidence"})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data["key"] == "min_confidence"
         assert response.data["value"] == 85.0
@@ -513,7 +514,7 @@ class TestConfigAPI:
         """Test getting non-existent configuration."""
         url = reverse("api:config")
         response = api_client.get(url, {"key": "nonexistent"})
-        
+
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_update_config(self, api_client, system_config):
@@ -525,10 +526,10 @@ class TestConfigAPI:
             "description": "Updated threshold",
         }
         response = api_client.put(url, data, format="json")
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data["value"] == 90.0
-        
+
         system_config.refresh_from_db()
         assert system_config.value == 90.0
 
@@ -541,7 +542,7 @@ class TestConfigAPI:
             "description": "Maximum drawdown limit",
         }
         response = api_client.put(url, data, format="json")
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert SystemConfig.objects.filter(key="max_drawdown").exists()
 
@@ -550,14 +551,14 @@ class TestConfigAPI:
         url = reverse("api:config")
         data = {"value": 90.0}  # Missing key
         response = api_client.put(url, data, format="json")
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_delete_config(self, api_client, system_config):
         """Test deleting configuration."""
         url = reverse("api:config")
         response = api_client.delete(url, QUERY_STRING="key=min_confidence")
-        
+
         assert response.status_code == status.HTTP_204_NO_CONTENT
         assert not SystemConfig.objects.filter(key="min_confidence").exists()
 
@@ -565,14 +566,14 @@ class TestConfigAPI:
         """Test deleting non-existent configuration."""
         url = reverse("api:config")
         response = api_client.delete(url, QUERY_STRING="key=nonexistent")
-        
+
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
     def test_delete_config_missing_key(self, api_client, db):
         """Test deleting configuration without key."""
         url = reverse("api:config")
         response = api_client.delete(url)
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
 
@@ -590,7 +591,7 @@ class TestBacktestAPI:
             "strategy_params": {"rsi_period": 14},
         }
         response = api_client.post(url, data, format="json")
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert response.data["symbol"] == "BTC_USDT"
         assert "message" in response.data  # Placeholder message
@@ -605,7 +606,7 @@ class TestBacktestAPI:
             "initial_balance": "10000.00",
         }
         response = api_client.post(url, data, format="json")
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_run_backtest_invalid_balance(self, api_client, trading_pair):
@@ -618,7 +619,7 @@ class TestBacktestAPI:
             "initial_balance": "-1000.00",
         }
         response = api_client.post(url, data, format="json")
-        
+
         assert response.status_code == status.HTTP_400_BAD_REQUEST
 
     def test_run_backtest_unknown_symbol(self, api_client, db):
@@ -631,7 +632,7 @@ class TestBacktestAPI:
             "initial_balance": "10000.00",
         }
         response = api_client.post(url, data, format="json")
-        
+
         assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
@@ -648,10 +649,10 @@ class TestPagination:
                 confidence=80 + i % 20,
                 indicators={},
             )
-        
+
         url = reverse("api:signal_list")
         response = api_client.get(url)
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert "count" in response.data
         assert response.data["count"] == 25
@@ -668,10 +669,10 @@ class TestPagination:
                 confidence=85,
                 indicators={},
             )
-        
+
         url = reverse("api:signal_list")
         response = api_client.get(url, {"page_size": 5})
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 5
 
@@ -684,9 +685,9 @@ class TestPagination:
                 confidence=85,
                 indicators={},
             )
-        
+
         url = reverse("api:signal_list")
         response = api_client.get(url, {"page_size": 200})  # Exceeds max
-        
+
         assert response.status_code == status.HTTP_200_OK
         assert len(response.data["results"]) == 100  # Max page size

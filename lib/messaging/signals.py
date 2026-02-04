@@ -14,16 +14,16 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+from collections.abc import AsyncIterator, Callable
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator, Callable
+from datetime import UTC, datetime
+from typing import Any
 
 import redis.asyncio as aioredis
 
 from lib.analysis.confidence import ConfidenceBreakdown, IndicatorScore
 from lib.analysis.signal import Signal
 from lib.analysis.technical import SignalDirection
-
 
 logger = logging.getLogger(__name__)
 
@@ -36,12 +36,13 @@ SIGNALS_CHANNEL = "signals"
 class SignalMessage:
     """
     Message wrapper for signals transmitted via Redis.
-    
+
     Attributes:
         signal: The trading signal
         published_at: When the message was published
         source: Identifier of the publishing agent
     """
+
     signal: Signal
     published_at: datetime
     source: str = "market-agent"
@@ -50,13 +51,13 @@ class SignalMessage:
 def signal_to_json(signal: Signal) -> dict[str, Any]:
     """
     Convert a Signal to a JSON-serializable dictionary.
-    
+
     Args:
         signal: The signal to convert
-        
+
     Returns:
         Dictionary representation of the signal
-        
+
     Requirements:
         - 5.1: Include direction, confidence_score, and supporting_factors
     """
@@ -95,19 +96,19 @@ def signal_to_json(signal: Signal) -> dict[str, Any]:
 def signal_from_json(data: dict[str, Any]) -> Signal:
     """
     Reconstruct a Signal from a JSON dictionary.
-    
+
     Args:
         data: Dictionary containing signal data
-        
+
     Returns:
         Reconstructed Signal object
     """
     # Parse direction
     direction = SignalDirection(data["direction"])
-    
+
     # Parse timestamp
     timestamp = datetime.fromisoformat(data["timestamp"])
-    
+
     # Parse indicators
     indicators = tuple(
         IndicatorScore(
@@ -120,7 +121,7 @@ def signal_from_json(data: dict[str, Any]) -> Signal:
         )
         for ind in data["indicators"]
     )
-    
+
     # Parse breakdown
     breakdown_data = data["breakdown"]
     breakdown = ConfidenceBreakdown(
@@ -134,7 +135,7 @@ def signal_from_json(data: dict[str, Any]) -> Signal:
         agreeing_indicators=breakdown_data["agreeing_indicators"],
         total_indicators=breakdown_data["total_indicators"],
     )
-    
+
     return Signal(
         symbol=data["symbol"],
         direction=direction,
@@ -151,15 +152,15 @@ def signal_from_json(data: dict[str, Any]) -> Signal:
 class SignalPublisher:
     """
     Publisher for trading signals via Redis pub/sub.
-    
+
     Publishes signals to the 'signals' channel for consumption by
     the bot management agent.
-    
+
     Example:
         >>> async with SignalPublisher(redis_url) as publisher:
         ...     await publisher.publish(signal)
     """
-    
+
     def __init__(
         self,
         redis_url: str = "redis://localhost:6379/0",
@@ -167,7 +168,7 @@ class SignalPublisher:
     ) -> None:
         """
         Initialize the SignalPublisher.
-        
+
         Args:
             redis_url: Redis connection URL
             source: Identifier for this publisher
@@ -175,7 +176,7 @@ class SignalPublisher:
         self._redis_url = redis_url
         self._source = source
         self._client: aioredis.Redis | None = None
-    
+
     async def _ensure_client(self) -> aioredis.Redis:
         """Get or create the Redis client."""
         if self._client is None:
@@ -185,74 +186,72 @@ class SignalPublisher:
                 decode_responses=True,
             )
         return self._client
-    
+
     async def close(self) -> None:
         """Close the Redis connection."""
         if self._client is not None:
             await self._client.close()
             self._client = None
-    
-    async def __aenter__(self) -> "SignalPublisher":
+
+    async def __aenter__(self) -> SignalPublisher:
         """Async context manager entry."""
         await self._ensure_client()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Async context manager exit."""
         await self.close()
-    
+
     async def publish(self, signal: Signal) -> int:
         """
         Publish a signal to the signals channel.
-        
+
         Args:
             signal: The signal to publish
-            
+
         Returns:
             Number of subscribers that received the message
         """
         client = await self._ensure_client()
-        
+
         # Create message payload
         payload = {
             "signal": signal_to_json(signal),
-            "published_at": datetime.now(tz=timezone.utc).isoformat(),
+            "published_at": datetime.now(tz=UTC).isoformat(),
             "source": self._source,
         }
-        
+
         # Publish to channel
         num_subscribers = await client.publish(
             SIGNALS_CHANNEL,
             json.dumps(payload),
         )
-        
-        logger.debug(
-            f"Published signal for {signal.symbol} to {num_subscribers} subscribers"
-        )
-        
+
+        logger.debug(f"Published signal for {signal.symbol} to {num_subscribers} subscribers")
+
         return num_subscribers
 
 
 class SignalSubscriber:
     """
     Subscriber for trading signals via Redis pub/sub.
-    
+
     Subscribes to the 'signals' channel and yields signals as they
     are published by the market analysis agent.
-    
+
     Example:
         >>> async with SignalSubscriber(redis_url) as subscriber:
         ...     async for message in subscriber.listen():
         ...         print(f"Received: {message.signal.symbol}")
     """
-    
+
     def __init__(
         self,
         redis_url: str = "redis://localhost:6379/0",
     ) -> None:
         """
         Initialize the SignalSubscriber.
-        
+
         Args:
             redis_url: Redis connection URL
         """
@@ -260,7 +259,7 @@ class SignalSubscriber:
         self._client: aioredis.Redis | None = None
         self._pubsub: aioredis.client.PubSub | None = None
         self._running = False
-    
+
     async def _ensure_client(self) -> aioredis.Redis:
         """Get or create the Redis client."""
         if self._client is None:
@@ -270,63 +269,63 @@ class SignalSubscriber:
                 decode_responses=True,
             )
         return self._client
-    
+
     async def close(self) -> None:
         """Close the Redis connection."""
         self._running = False
-        
+
         if self._pubsub is not None:
             await self._pubsub.unsubscribe(SIGNALS_CHANNEL)
             await self._pubsub.close()
             self._pubsub = None
-        
+
         if self._client is not None:
             await self._client.close()
             self._client = None
-    
-    async def __aenter__(self) -> "SignalSubscriber":
+
+    async def __aenter__(self) -> SignalSubscriber:
         """Async context manager entry."""
         await self._ensure_client()
         return self
-    
+
     async def __aexit__(self, exc_type, exc_val, exc_tb) -> None:
         """Async context manager exit."""
         await self.close()
-    
+
     async def listen(self) -> AsyncIterator[SignalMessage]:
         """
         Listen for signals on the signals channel.
-        
+
         Yields:
             SignalMessage objects as they are received
         """
         client = await self._ensure_client()
         self._pubsub = client.pubsub()
-        
+
         await self._pubsub.subscribe(SIGNALS_CHANNEL)
         logger.info(f"Subscribed to {SIGNALS_CHANNEL} channel")
-        
+
         self._running = True
-        
+
         try:
             while self._running:
                 message = await self._pubsub.get_message(
                     ignore_subscribe_messages=True,
                     timeout=1.0,
                 )
-                
+
                 if message is None:
                     continue
-                
+
                 if message["type"] != "message":
                     continue
-                
+
                 try:
                     payload = json.loads(message["data"])
                     signal = signal_from_json(payload["signal"])
                     published_at = datetime.fromisoformat(payload["published_at"])
                     source = payload.get("source", "unknown")
-                    
+
                     yield SignalMessage(
                         signal=signal,
                         published_at=published_at,
@@ -337,7 +336,7 @@ class SignalSubscriber:
                     continue
         finally:
             self._running = False
-    
+
     def stop(self) -> None:
         """Stop listening for signals."""
         self._running = False
@@ -350,7 +349,7 @@ async def subscribe_to_signals(
 ) -> None:
     """
     Convenience function to subscribe to signals with a callback.
-    
+
     Args:
         redis_url: Redis connection URL
         callback: Async function to call for each signal
@@ -360,7 +359,7 @@ async def subscribe_to_signals(
         async for message in subscriber.listen():
             if stop_event is not None and stop_event.is_set():
                 break
-            
+
             try:
                 if asyncio.iscoroutinefunction(callback):
                     await callback(message)

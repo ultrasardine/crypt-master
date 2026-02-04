@@ -9,9 +9,9 @@ from lib.analysis.confidence import (
 )
 from lib.analysis.news import (
     ArticleSentiment,
+    NewsAnalysisResult,
     NewsAnalyzer,
     NewsAnalyzerConfig,
-    NewsAnalysisResult,
     NewsArticle,
     NewsSentiment,
 )

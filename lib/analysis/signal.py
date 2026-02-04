@@ -12,8 +12,8 @@ Requirements:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from datetime import datetime
 from typing import TYPE_CHECKING
 
 from lib.analysis.confidence import (
@@ -33,7 +33,7 @@ if TYPE_CHECKING:
 class Signal:
     """
     Trading signal with all metadata.
-    
+
     Attributes:
         symbol: Trading pair symbol (e.g., "BTC_USDT")
         direction: Signal direction (BUY/SELL/HOLD)
@@ -45,6 +45,7 @@ class Signal:
         meets_threshold: Whether confidence meets minimum threshold
         threshold_used: The minimum confidence threshold that was applied
     """
+
     symbol: str
     direction: SignalDirection
     confidence: float
@@ -60,14 +61,15 @@ class Signal:
 class SignalGeneratorConfig:
     """
     Configuration for SignalGenerator.
-    
+
     Attributes:
         min_confidence_threshold: Minimum confidence to generate BUY/SELL signal (default 85%)
         confidence_config: Configuration for the underlying ConfidenceScorer
     """
+
     min_confidence_threshold: float = 85.0
     confidence_config: ConfidenceConfig | None = None
-    
+
     def __post_init__(self) -> None:
         """Validate configuration values."""
         if not 0 <= self.min_confidence_threshold <= 100:
@@ -80,16 +82,16 @@ class SignalGeneratorConfig:
 class SignalGenerator:
     """
     Signal generator that combines analysis sources into trading signals.
-    
+
     Uses ConfidenceScorer to calculate confidence from technical indicators,
     sentiment analysis, and news sentiment. Enforces minimum confidence
     threshold (default 85%) - signals below threshold are converted to HOLD.
-    
+
     Requirements:
         - 5.5: Only execute trades when confidence_score meets or exceeds minimum threshold (default 85%)
         - 5.1: Generate Signal containing direction, confidence_score, and supporting_factors
         - 5.6: Include all indicator values and their individual contributions
-    
+
     Example:
         >>> generator = SignalGenerator()
         >>> technical_scores = [
@@ -100,23 +102,23 @@ class SignalGenerator:
         >>> signal = generator.generate_signal("BTC_USDT", technical_scores, sentiment)
         >>> print(f"Signal: {signal.direction}, Confidence: {signal.confidence:.1f}%")
     """
-    
+
     def __init__(self, config: SignalGeneratorConfig | None = None) -> None:
         """
         Initialize the SignalGenerator.
-        
+
         Args:
             config: Optional configuration for signal generation.
                     Uses defaults if not provided.
         """
         self.config = config or SignalGeneratorConfig()
         self._scorer = ConfidenceScorer(config=self.config.confidence_config)
-    
+
     @property
     def min_confidence_threshold(self) -> float:
         """Get the minimum confidence threshold."""
         return self.config.min_confidence_threshold
-    
+
     def generate_signal(
         self,
         symbol: str,
@@ -126,20 +128,20 @@ class SignalGenerator:
     ) -> Signal:
         """
         Generate a trading signal from analysis inputs.
-        
+
         Combines technical indicators, sentiment, and news into a confidence
         score. If confidence is below the minimum threshold (default 85%),
         the signal direction is overridden to HOLD.
-        
+
         Args:
             symbol: Trading pair symbol (e.g., "BTC_USDT")
             technical_scores: List of technical indicator scores
             sentiment_score: Optional sentiment analysis score
             news_score: Optional news sentiment score
-            
+
         Returns:
             Signal with direction, confidence, and all metadata
-            
+
         Requirements:
             - 5.5: Only execute trades when confidence >= threshold (default 85%)
             - 5.1: Generate Signal with direction, confidence, supporting_factors
@@ -151,24 +153,24 @@ class SignalGenerator:
             sentiment_score=sentiment_score,
             news_score=news_score,
         )
-        
+
         # Check if confidence meets threshold
         meets_threshold = confidence_result.confidence >= self.config.min_confidence_threshold
-        
+
         # Determine final signal direction
         # Requirement 5.5: Only execute trades when confidence meets threshold
         if meets_threshold:
             final_direction = confidence_result.signal
         else:
             final_direction = SignalDirection.HOLD
-        
+
         # Generate reasoning
         reasoning = self._generate_reasoning(
             confidence_result=confidence_result,
             meets_threshold=meets_threshold,
             threshold=self.config.min_confidence_threshold,
         )
-        
+
         return Signal(
             symbol=symbol,
             direction=final_direction,
@@ -180,7 +182,7 @@ class SignalGenerator:
             meets_threshold=meets_threshold,
             threshold_used=self.config.min_confidence_threshold,
         )
-    
+
     def _generate_reasoning(
         self,
         confidence_result: ConfidenceResult,
@@ -189,17 +191,17 @@ class SignalGenerator:
     ) -> str:
         """
         Generate human-readable reasoning for the signal.
-        
+
         Args:
             confidence_result: Result from confidence scorer
             meets_threshold: Whether confidence meets minimum threshold
             threshold: The minimum confidence threshold
-            
+
         Returns:
             Human-readable explanation string
         """
         base_reasoning = confidence_result.reasoning
-        
+
         if not meets_threshold:
             return (
                 f"HOLD signal - confidence {confidence_result.confidence:.1f}% "
@@ -207,35 +209,35 @@ class SignalGenerator:
                 f"Original signal was {confidence_result.signal.value}. "
                 f"{base_reasoning}"
             )
-        
+
         if confidence_result.conflict_detected:
             return (
                 f"HOLD signal due to conflicting indicators. "
                 f"Confidence: {confidence_result.confidence:.1f}%. "
                 f"{base_reasoning}"
             )
-        
+
         return (
             f"{confidence_result.signal.value} signal with "
             f"{confidence_result.confidence:.1f}% confidence "
             f"(threshold: {threshold:.1f}%). "
             f"{base_reasoning}"
         )
-    
+
     def would_execute(self, signal: Signal) -> bool:
         """
         Check if a signal would result in trade execution.
-        
+
         A signal results in execution only if:
         1. Direction is BUY or SELL (not HOLD)
         2. Confidence meets or exceeds the minimum threshold
-        
+
         Args:
             signal: The signal to check
-            
+
         Returns:
             True if the signal would trigger a trade execution
-            
+
         Requirements:
             - 5.5: Only execute trades when confidence >= threshold
         """
@@ -243,17 +245,17 @@ class SignalGenerator:
             signal.direction in (SignalDirection.BUY, SignalDirection.SELL)
             and signal.meets_threshold
         )
-    
+
     def get_signal_metadata(self, signal: Signal) -> dict:
         """
         Get signal metadata as a dictionary for logging/storage.
-        
+
         Args:
             signal: The signal to extract metadata from
-            
+
         Returns:
             Dictionary with all signal metadata
-            
+
         Requirements:
             - 5.6: Include all indicator values and contributions
         """

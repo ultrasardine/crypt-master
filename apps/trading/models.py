@@ -4,7 +4,7 @@ from datetime import timedelta
 from decimal import Decimal
 
 from django.db import models
-from django.db.models import Avg, Count, QuerySet, Sum
+from django.db.models import Avg, QuerySet, Sum
 from django.utils import timezone
 
 from apps.core.models import TimeStampedModel, TradingPair
@@ -79,9 +79,7 @@ class SignalManager(models.Manager):
         """Get recent actionable (BUY/SELL) signals."""
         return self.get_queryset().recent(hours).actionable()
 
-    def high_confidence_recent(
-        self, hours: int = 24, threshold: float = 85.0
-    ) -> SignalQuerySet:
+    def high_confidence_recent(self, hours: int = 24, threshold: float = 85.0) -> SignalQuerySet:
         """Get recent high-confidence signals."""
         return self.get_queryset().recent(hours).high_confidence(threshold)
 
@@ -254,9 +252,7 @@ class TradeManager(models.Manager):
         """Get all trades for a trading pair."""
         return self.get_queryset().for_pair(symbol)
 
-    def history(
-        self, simulated: bool = False, limit: int = 100
-    ) -> TradeQuerySet:
+    def history(self, simulated: bool = False, limit: int = 100) -> TradeQuerySet:
         """Get trade history with optional limit."""
         qs = self.get_queryset().closed()
         qs = qs.simulated() if simulated else qs.live()

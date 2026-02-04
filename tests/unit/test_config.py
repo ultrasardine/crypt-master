@@ -15,7 +15,6 @@ Requirements:
 import json
 import os
 import tempfile
-from pathlib import Path
 from unittest import mock
 
 import pytest
@@ -44,7 +43,7 @@ class TestDefaultValues:
     def test_get_default_config_returns_valid_config(self) -> None:
         """Default config should be valid and complete."""
         config = get_default_config()
-        
+
         assert config.dry_run is True
         assert config.debug is False
         assert "localhost" in config.allowed_hosts
@@ -52,7 +51,7 @@ class TestDefaultValues:
     def test_database_defaults(self) -> None:
         """Database config should have sensible defaults."""
         config = DatabaseConfig()
-        
+
         assert "postgres" in config.url or "postgresql" in config.url
         assert config.use_sqlite is False
         assert config.conn_max_age == 600
@@ -60,14 +59,14 @@ class TestDefaultValues:
     def test_redis_defaults(self) -> None:
         """Redis config should have sensible defaults."""
         config = RedisConfig()
-        
+
         assert "redis" in config.url
         assert "6379" in config.url
 
     def test_risk_defaults(self) -> None:
         """Risk config should have sensible defaults."""
         config = RiskConfig()
-        
+
         assert config.max_position_pct == 0.10
         assert config.max_risk_per_trade == 0.02
         assert config.max_drawdown == 0.20
@@ -77,7 +76,7 @@ class TestDefaultValues:
     def test_analysis_defaults(self) -> None:
         """Analysis config should have sensible defaults."""
         config = AnalysisConfig()
-        
+
         assert config.interval_seconds == 60
         assert config.rsi_period == 14
         assert config.macd_fast == 12
@@ -89,7 +88,7 @@ class TestDefaultValues:
     def test_llm_defaults(self) -> None:
         """LLM config should have sensible defaults."""
         config = LLMConfig()
-        
+
         assert config.enabled is False
         assert "11434" in config.ollama_url
         assert config.model == "llama3.2"
@@ -97,7 +96,7 @@ class TestDefaultValues:
     def test_logging_defaults(self) -> None:
         """Logging config should have sensible defaults."""
         config = LoggingConfig()
-        
+
         assert config.level == "INFO"
         assert config.max_bytes == 10 * 1024 * 1024
         assert config.backup_count == 5
@@ -119,18 +118,16 @@ class TestYAMLLoading:
                 "api_secret": "test-secret",
             },
         }
-        
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False
-        ) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump(config_data, f)
             f.flush()
-            
+
             try:
                 # Clear env vars that might interfere
                 with mock.patch.dict(os.environ, {}, clear=True):
                     config = load_config_from_file(f.name)
-                
+
                 assert config.dry_run is False
                 assert config.debug is True
                 assert config.risk.max_position_pct == 0.15
@@ -146,33 +143,29 @@ class TestYAMLLoading:
                 "api_secret": "test-secret",
             },
         }
-        
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yml", delete=False
-        ) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yml", delete=False) as f:
             yaml.dump(config_data, f)
             f.flush()
-            
+
             try:
                 with mock.patch.dict(os.environ, {}, clear=True):
                     config = load_config_from_file(f.name)
-                
+
                 assert config.dry_run is False
             finally:
                 os.unlink(f.name)
 
     def test_empty_yaml_uses_defaults(self) -> None:
         """Empty YAML file should use all defaults."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("")
             f.flush()
-            
+
             try:
                 with mock.patch.dict(os.environ, {}, clear=True):
                     config = load_config_from_file(f.name)
-                
+
                 # Should have all defaults
                 assert config.dry_run is True
                 assert config.risk.max_position_pct == 0.10
@@ -195,17 +188,15 @@ class TestJSONLoading:
                 "api_secret": "test-secret",
             },
         }
-        
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             json.dump(config_data, f)
             f.flush()
-            
+
             try:
                 with mock.patch.dict(os.environ, {}, clear=True):
                     config = load_config_from_file(f.name)
-                
+
                 assert config.dry_run is False
                 assert config.analysis.rsi_period == 21
             finally:
@@ -213,16 +204,14 @@ class TestJSONLoading:
 
     def test_empty_json_uses_defaults(self) -> None:
         """Empty JSON file should use all defaults."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("{}")
             f.flush()
-            
+
             try:
                 with mock.patch.dict(os.environ, {}, clear=True):
                     config = load_config_from_file(f.name)
-                
+
                 assert config.dry_run is True
             finally:
                 os.unlink(f.name)
@@ -234,13 +223,11 @@ class TestEnvironmentOverrides:
     def test_env_overrides_file_values(self) -> None:
         """Environment variables should override file values."""
         config_data = {"dry_run": True}
-        
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False
-        ) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump(config_data, f)
             f.flush()
-            
+
             try:
                 with mock.patch.dict(
                     os.environ,
@@ -252,7 +239,7 @@ class TestEnvironmentOverrides:
                     clear=True,
                 ):
                     config = load_config_from_file(f.name)
-                
+
                 assert config.dry_run is False
             finally:
                 os.unlink(f.name)
@@ -265,7 +252,7 @@ class TestEnvironmentOverrides:
             clear=True,
         ):
             config = load_config_from_dict({})
-        
+
         assert config.pionex.api_key == "test-key"
         assert config.pionex.api_secret == "test-secret"
 
@@ -280,7 +267,7 @@ class TestEnvironmentOverrides:
             clear=True,
         ):
             config = load_config_from_dict({})
-        
+
         assert config.risk.max_position_pct == 0.20
         assert config.risk.max_drawdown == 0.30
 
@@ -296,7 +283,7 @@ class TestEnvironmentOverrides:
             clear=True,
         ):
             config = load_config_from_dict({})
-        
+
         assert config.analysis.rsi_period == 21
         assert config.analysis.macd_fast == 8
         assert config.analysis.macd_slow == 21
@@ -309,28 +296,28 @@ class TestValidation:
         """Should reject invalid max_position_pct."""
         with pytest.raises(ConfigurationError) as exc_info:
             RiskConfig(max_position_pct=1.5)
-        
+
         assert "max_position_pct" in str(exc_info.value)
 
     def test_invalid_risk_max_position_pct_zero(self) -> None:
         """Should reject zero max_position_pct."""
         with pytest.raises(ConfigurationError) as exc_info:
             RiskConfig(max_position_pct=0.0)
-        
+
         assert "max_position_pct" in str(exc_info.value)
 
     def test_invalid_analysis_macd_fast_slow(self) -> None:
         """Should reject macd_fast >= macd_slow."""
         with pytest.raises(ConfigurationError) as exc_info:
             AnalysisConfig(macd_fast=26, macd_slow=12)
-        
+
         assert "macd_fast" in str(exc_info.value)
 
     def test_invalid_logging_level(self) -> None:
         """Should reject invalid log level."""
         with pytest.raises(ConfigurationError) as exc_info:
             LoggingConfig(level="INVALID")
-        
+
         assert "level" in str(exc_info.value)
 
     def test_live_trading_requires_api_credentials(self) -> None:
@@ -338,7 +325,7 @@ class TestValidation:
         with pytest.raises(ConfigurationError) as exc_info:
             with mock.patch.dict(os.environ, {}, clear=True):
                 TradingBotConfig(dry_run=False)
-        
+
         assert "api_key" in str(exc_info.value).lower() or "api" in str(exc_info.value).lower()
 
     def test_live_trading_with_credentials_succeeds(self) -> None:
@@ -348,21 +335,21 @@ class TestValidation:
                 dry_run=False,
                 pionex=PionexConfig(api_key="key", api_secret="secret"),
             )
-        
+
         assert config.dry_run is False
 
     def test_database_url_cannot_be_empty(self) -> None:
         """Database URL cannot be empty."""
         with pytest.raises(ConfigurationError) as exc_info:
             DatabaseConfig(url="")
-        
+
         assert "url" in str(exc_info.value).lower()
 
     def test_llm_enabled_requires_url(self) -> None:
         """LLM enabled requires ollama_url."""
         with pytest.raises(ConfigurationError) as exc_info:
             LLMConfig(enabled=True, ollama_url="")
-        
+
         assert "ollama_url" in str(exc_info.value)
 
 
@@ -376,48 +363,42 @@ class TestFileErrors:
 
     def test_invalid_yaml_syntax(self) -> None:
         """Should raise ConfigurationError for invalid YAML."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             f.write("invalid: yaml: syntax: [")
             f.flush()
-            
+
             try:
                 with pytest.raises(ConfigurationError) as exc_info:
                     load_config_from_file(f.name)
-                
+
                 assert "YAML" in str(exc_info.value)
             finally:
                 os.unlink(f.name)
 
     def test_invalid_json_syntax(self) -> None:
         """Should raise ConfigurationError for invalid JSON."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".json", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
             f.write("{invalid json}")
             f.flush()
-            
+
             try:
                 with pytest.raises(ConfigurationError) as exc_info:
                     load_config_from_file(f.name)
-                
+
                 assert "JSON" in str(exc_info.value)
             finally:
                 os.unlink(f.name)
 
     def test_unsupported_file_format(self) -> None:
         """Should raise ConfigurationError for unsupported format."""
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".txt", delete=False
-        ) as f:
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as f:
             f.write("some content")
             f.flush()
-            
+
             try:
                 with pytest.raises(ConfigurationError) as exc_info:
                     load_config_from_file(f.name)
-                
+
                 assert "Unsupported" in str(exc_info.value)
             finally:
                 os.unlink(f.name)
@@ -435,17 +416,15 @@ class TestLoadConfigFunction:
                 "api_secret": "test-secret",
             },
         }
-        
-        with tempfile.NamedTemporaryFile(
-            mode="w", suffix=".yaml", delete=False
-        ) as f:
+
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False) as f:
             yaml.dump(config_data, f)
             f.flush()
-            
+
             try:
                 with mock.patch.dict(os.environ, {}, clear=True):
                     config = load_config(file_path=f.name)
-                
+
                 assert config.dry_run is False
             finally:
                 os.unlink(f.name)
@@ -462,14 +441,14 @@ class TestLoadConfigFunction:
                     },
                 }
             )
-        
+
         assert config.dry_run is False
 
     def test_load_config_defaults_only(self) -> None:
         """load_config with no args should use defaults + env."""
         with mock.patch.dict(os.environ, {}, clear=True):
             config = load_config()
-        
+
         assert config.dry_run is True
 
 
@@ -479,12 +458,12 @@ class TestConfigurationError:
     def test_error_with_field(self) -> None:
         """Error should include field name."""
         error = ConfigurationError("Invalid value", field="risk.max_position_pct")
-        
+
         assert "risk.max_position_pct" in str(error)
         assert "Invalid value" in str(error)
 
     def test_error_without_field(self) -> None:
         """Error should work without field name."""
         error = ConfigurationError("General error")
-        
+
         assert "General error" in str(error)

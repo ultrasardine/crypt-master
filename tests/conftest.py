@@ -13,7 +13,7 @@ from django.core.management import call_command
 @pytest.fixture(scope="session")
 def django_db_setup(django_db_blocker):
     """Configure Django database for testing.
-    
+
     Creates all tables using migrations for the in-memory SQLite database.
     """
     with django_db_blocker.unblock():
@@ -24,4 +24,5 @@ def django_db_setup(django_db_blocker):
 def api_client():
     """Create an API client for testing."""
     from rest_framework.test import APIClient
+
     return APIClient()

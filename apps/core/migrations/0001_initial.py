@@ -4,68 +4,92 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='SystemConfig',
+            name="SystemConfig",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('key', models.CharField(db_index=True, max_length=100, unique=True)),
-                ('value', models.JSONField()),
-                ('description', models.TextField(blank=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("key", models.CharField(db_index=True, max_length=100, unique=True)),
+                ("value", models.JSONField()),
+                ("description", models.TextField(blank=True)),
             ],
             options={
-                'verbose_name': 'System Configuration',
-                'verbose_name_plural': 'System Configurations',
-                'ordering': ['key'],
+                "verbose_name": "System Configuration",
+                "verbose_name_plural": "System Configurations",
+                "ordering": ["key"],
             },
         ),
         migrations.CreateModel(
-            name='TradingPair',
+            name="TradingPair",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('symbol', models.CharField(db_index=True, max_length=20, unique=True)),
-                ('base_currency', models.CharField(max_length=10)),
-                ('quote_currency', models.CharField(max_length=10)),
-                ('is_active', models.BooleanField(default=True)),
-                ('min_quantity', models.DecimalField(blank=True, decimal_places=10, max_digits=20, null=True)),
-                ('max_quantity', models.DecimalField(blank=True, decimal_places=10, max_digits=20, null=True)),
-                ('price_precision', models.IntegerField(default=8)),
-                ('quantity_precision', models.IntegerField(default=8)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("symbol", models.CharField(db_index=True, max_length=20, unique=True)),
+                ("base_currency", models.CharField(max_length=10)),
+                ("quote_currency", models.CharField(max_length=10)),
+                ("is_active", models.BooleanField(default=True)),
+                (
+                    "min_quantity",
+                    models.DecimalField(blank=True, decimal_places=10, max_digits=20, null=True),
+                ),
+                (
+                    "max_quantity",
+                    models.DecimalField(blank=True, decimal_places=10, max_digits=20, null=True),
+                ),
+                ("price_precision", models.IntegerField(default=8)),
+                ("quantity_precision", models.IntegerField(default=8)),
             ],
             options={
-                'verbose_name': 'Trading Pair',
-                'verbose_name_plural': 'Trading Pairs',
-                'ordering': ['symbol'],
+                "verbose_name": "Trading Pair",
+                "verbose_name_plural": "Trading Pairs",
+                "ordering": ["symbol"],
             },
         ),
         migrations.CreateModel(
-            name='PortfolioSnapshot',
+            name="PortfolioSnapshot",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('total_value', models.DecimalField(decimal_places=8, max_digits=20)),
-                ('available_balance', models.DecimalField(decimal_places=8, max_digits=20)),
-                ('allocated_to_bots', models.DecimalField(decimal_places=8, max_digits=20)),
-                ('drawdown', models.FloatField(default=0.0)),
-                ('high_water_mark', models.DecimalField(decimal_places=8, max_digits=20)),
-                ('is_simulated', models.BooleanField(default=False)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                ("total_value", models.DecimalField(decimal_places=8, max_digits=20)),
+                ("available_balance", models.DecimalField(decimal_places=8, max_digits=20)),
+                ("allocated_to_bots", models.DecimalField(decimal_places=8, max_digits=20)),
+                ("drawdown", models.FloatField(default=0.0)),
+                ("high_water_mark", models.DecimalField(decimal_places=8, max_digits=20)),
+                ("is_simulated", models.BooleanField(default=False)),
             ],
             options={
-                'verbose_name': 'Portfolio Snapshot',
-                'verbose_name_plural': 'Portfolio Snapshots',
-                'ordering': ['-created_at'],
-                'indexes': [models.Index(fields=['created_at'], name='core_portfo_created_f29531_idx'), models.Index(fields=['is_simulated', 'created_at'], name='core_portfo_is_simu_976dd4_idx')],
+                "verbose_name": "Portfolio Snapshot",
+                "verbose_name_plural": "Portfolio Snapshots",
+                "ordering": ["-created_at"],
+                "indexes": [
+                    models.Index(fields=["created_at"], name="core_portfo_created_f29531_idx"),
+                    models.Index(
+                        fields=["is_simulated", "created_at"], name="core_portfo_is_simu_976dd4_idx"
+                    ),
+                ],
             },
         ),
     ]

@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.db import connection
 from django.http import JsonResponse
 from django.shortcuts import redirect
-from django.views.generic import FormView, TemplateView, View
+from django.views.generic import TemplateView, View
 
 from .models import SystemConfig
 

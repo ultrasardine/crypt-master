@@ -1,7 +1,7 @@
 """Analysis views."""
 
 import json
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 from django.http import JsonResponse
@@ -129,7 +129,11 @@ class IndicatorDetailView(TemplateView):
 
         context["indicator_info"] = indicator_info.get(
             indicator_name,
-            {"name": indicator_name.upper(), "description": "Technical indicator", "range": "Variable"},
+            {
+                "name": indicator_name.upper(),
+                "description": "Technical indicator",
+                "range": "Variable",
+            },
         )
 
         return context
@@ -222,7 +226,7 @@ class RunBacktestView(View):
         }
         delta = interval_deltas.get(interval, timedelta(hours=1))
 
-        start_time = datetime.now(tz=timezone.utc) - (delta * num_candles)
+        start_time = datetime.now(tz=UTC) - (delta * num_candles)
         candles = []
         price = 50000.0  # Starting price (e.g., BTC)
 
