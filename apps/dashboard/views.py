@@ -1,6 +1,5 @@
 """Dashboard views."""
 
-
 from django.views.generic import TemplateView
 
 from apps.bots.models import Bot

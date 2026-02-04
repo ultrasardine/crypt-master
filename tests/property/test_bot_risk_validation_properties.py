@@ -328,9 +328,7 @@ class TestBotRiskValidation:
         result3 = risk_manager.validate_bot_creation(third_allocation)
 
         # 120% of limit should be rejected
-        assert result3.is_valid is False, (
-            "Third allocation should be rejected (would exceed limit)"
-        )
+        assert result3.is_valid is False, "Third allocation should be rejected (would exceed limit)"
 
 
 class TestBotRiskValidationEdgeCases:
