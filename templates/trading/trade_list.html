@@ -3,194 +3,256 @@
 {% block title %}Trades - Crypt Master{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Trade History</h1>
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">Trade History</h1>
+            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">All trades executed by your bots. Open trades are still active. Closed trades show final P&L. Use filters to analyze performance.</span>
+            </span>
+        </div>
+    </div>
     
     <!-- Statistics Summary -->
-    <div class="row stats-row">
-        <div class="col stats-card">
-            <h3>Live Trading</h3>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <span class="stat-label">Total Trades</span>
-                    <span class="stat-value">{{ live_stats.total_trades }}</span>
+    <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <!-- Live Trading Stats -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <h3 class="text-lg font-semibold text-slate-100">Live Trading</h3>
+            </div>
+            <div class="grid grid-cols-2 gap-4 px-4 py-5 sm:grid-cols-4 sm:px-6">
+                <div class="text-center">
+                    <dt class="text-xs font-medium text-slate-400">Total Trades</dt>
+                    <dd class="mt-1 text-lg font-semibold text-slate-100">{{ live_stats.total_trades }}</dd>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Open Positions</span>
-                    <span class="stat-value">{{ live_stats.open_positions }}</span>
+                <div class="text-center">
+                    <dt class="flex items-center justify-center gap-1 text-xs font-medium text-slate-400">
+                        Open Positions
+                        <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                            <span class="flex h-3 w-3 items-center justify-center rounded-full bg-slate-600 text-[8px] font-semibold text-slate-300">?</span>
+                            <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Trades that haven't been closed yet. P&L is unrealized until position is closed.</span>
+                        </span>
+                    </dt>
+                    <dd class="mt-1 text-lg font-semibold text-slate-100">{{ live_stats.open_positions }}</dd>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Win Rate</span>
-                    <span class="stat-value {% if live_stats.win_rate >= 50 %}text-success{% else %}text-danger{% endif %}">
+                <div class="text-center">
+                    <dt class="flex items-center justify-center gap-1 text-xs font-medium text-slate-400">
+                        Win Rate
+                        <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                            <span class="flex h-3 w-3 items-center justify-center rounded-full bg-slate-600 text-[8px] font-semibold text-slate-300">?</span>
+                            <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Percentage of closed trades that were profitable. Above 50% is generally good.</span>
+                        </span>
+                    </dt>
+                    <dd class="mt-1 text-lg font-semibold {% if live_stats.win_rate >= 50 %}text-emerald-400{% else %}text-red-400{% endif %}">
                         {{ live_stats.win_rate|floatformat:1 }}%
-                    </span>
+                    </dd>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Total P&L</span>
-                    <span class="stat-value {% if live_stats.total_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                <div class="text-center">
+                    <dt class="text-xs font-medium text-slate-400">Total P&L</dt>
+                    <dd class="mt-1 text-lg font-semibold {% if live_stats.total_pnl >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">
                         ${{ live_stats.total_pnl|floatformat:2 }}
-                    </span>
+                    </dd>
                 </div>
             </div>
         </div>
         
-        <div class="col stats-card">
-            <h3>Simulated Trading</h3>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <span class="stat-label">Total Trades</span>
-                    <span class="stat-value">{{ sim_stats.total_trades }}</span>
+        <!-- Simulated Trading Stats -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <h3 class="text-lg font-semibold text-slate-100">Simulated Trading</h3>
+            </div>
+            <div class="grid grid-cols-2 gap-4 px-4 py-5 sm:grid-cols-4 sm:px-6">
+                <div class="text-center">
+                    <dt class="text-xs font-medium text-slate-400">Total Trades</dt>
+                    <dd class="mt-1 text-lg font-semibold text-slate-100">{{ sim_stats.total_trades }}</dd>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Open Positions</span>
-                    <span class="stat-value">{{ sim_stats.open_positions }}</span>
+                <div class="text-center">
+                    <dt class="text-xs font-medium text-slate-400">Open Positions</dt>
+                    <dd class="mt-1 text-lg font-semibold text-slate-100">{{ sim_stats.open_positions }}</dd>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Win Rate</span>
-                    <span class="stat-value {% if sim_stats.win_rate >= 50 %}text-success{% else %}text-danger{% endif %}">
+                <div class="text-center">
+                    <dt class="text-xs font-medium text-slate-400">Win Rate</dt>
+                    <dd class="mt-1 text-lg font-semibold {% if sim_stats.win_rate >= 50 %}text-emerald-400{% else %}text-red-400{% endif %}">
                         {{ sim_stats.win_rate|floatformat:1 }}%
-                    </span>
+                    </dd>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Total P&L</span>
-                    <span class="stat-value {% if sim_stats.total_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+                <div class="text-center">
+                    <dt class="text-xs font-medium text-slate-400">Total P&L</dt>
+                    <dd class="mt-1 text-lg font-semibold {% if sim_stats.total_pnl >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">
                         ${{ sim_stats.total_pnl|floatformat:2 }}
-                    </span>
+                    </dd>
                 </div>
             </div>
         </div>
     </div>
     
-    <!-- 24h Summary -->
-    <div class="summary-bar">
-        <div class="summary-item">
-            <span class="summary-label">24h P&L</span>
-            <span class="summary-value {% if recent_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
+    <!-- 24h Summary Bar -->
+    <div class="mb-6 flex flex-wrap items-center gap-6 rounded-xl border border-slate-700 bg-slate-800 px-4 py-4 sm:px-6">
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-slate-400">24h P&L</span>
+            <span class="text-lg font-semibold {% if recent_pnl >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">
                 ${{ recent_pnl|floatformat:2 }}
             </span>
         </div>
-        <div class="summary-item">
-            <span class="summary-label">24h Volume</span>
-            <span class="summary-value">${{ recent_volume|floatformat:2 }}</span>
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-slate-400">24h Volume</span>
+            <span class="text-lg font-semibold text-slate-100">${{ recent_volume|floatformat:2 }}</span>
         </div>
     </div>
     
     <!-- Filters -->
-    <form method="get" class="filter-form">
-        <div class="form-group">
-            <label for="side">Side</label>
-            <select name="side" id="side">
-                <option value="">All Sides</option>
-                {% for value, label in side_choices %}
-                <option value="{{ value }}" {% if current_side == value %}selected{% endif %}>{{ label }}</option>
-                {% endfor %}
-            </select>
+    <form method="get" class="mb-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h3 class="text-lg font-semibold text-slate-100">Filters</h3>
         </div>
-        
-        <div class="form-group">
-            <label for="mode">Mode</label>
-            <select name="mode" id="mode">
-                <option value="">All Modes</option>
-                <option value="live" {% if current_mode == "live" %}selected{% endif %}>Live</option>
-                <option value="simulated" {% if current_mode == "simulated" %}selected{% endif %}>Simulated</option>
-            </select>
+        <div class="px-4 py-5 sm:px-6">
+            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                <div>
+                    <label for="side" class="block text-sm font-medium text-slate-300">Side</label>
+                    <select name="side" id="side" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                        <option value="">All Sides</option>
+                        {% for value, label in side_choices %}
+                        <option value="{{ value }}" {% if current_side == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="mode" class="block text-sm font-medium text-slate-300">Mode</label>
+                    <select name="mode" id="mode" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                        <option value="">All Modes</option>
+                        <option value="live" {% if current_mode == "live" %}selected{% endif %}>Live</option>
+                        <option value="simulated" {% if current_mode == "simulated" %}selected{% endif %}>Simulated</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="status" class="block text-sm font-medium text-slate-300">Status</label>
+                    <select name="status" id="status" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                        <option value="">All Statuses</option>
+                        <option value="open" {% if current_status == "open" %}selected{% endif %}>Open</option>
+                        <option value="closed" {% if current_status == "closed" %}selected{% endif %}>Closed</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="profit" class="block text-sm font-medium text-slate-300">Profitability</label>
+                    <select name="profit" id="profit" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                        <option value="">All</option>
+                        <option value="profitable" {% if current_profit == "profitable" %}selected{% endif %}>Profitable</option>
+                        <option value="unprofitable" {% if current_profit == "unprofitable" %}selected{% endif %}>Unprofitable</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="symbol" class="block text-sm font-medium text-slate-300">Trading Pair</label>
+                    <select name="symbol" id="symbol" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                        <option value="">All Pairs</option>
+                        {% for pair in trading_pairs %}
+                        <option value="{{ pair.symbol }}" {% if current_symbol == pair.symbol %}selected{% endif %}>{{ pair.symbol }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex items-end gap-2">
+                    <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                        Filter
+                    </button>
+                    <a href="{% url 'trading:trade_list' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 shadow-sm transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                        Clear
+                    </a>
+                </div>
+            </div>
         </div>
-        
-        <div class="form-group">
-            <label for="status">Status</label>
-            <select name="status" id="status">
-                <option value="">All Statuses</option>
-                <option value="open" {% if current_status == "open" %}selected{% endif %}>Open</option>
-                <option value="closed" {% if current_status == "closed" %}selected{% endif %}>Closed</option>
-            </select>
-        </div>
-        
-        <div class="form-group">
-            <label for="profit">Profitability</label>
-            <select name="profit" id="profit">
-                <option value="">All</option>
-                <option value="profitable" {% if current_profit == "profitable" %}selected{% endif %}>Profitable</option>
-                <option value="unprofitable" {% if current_profit == "unprofitable" %}selected{% endif %}>Unprofitable</option>
-            </select>
-        </div>
-        
-        <div class="form-group">
-            <label for="symbol">Trading Pair</label>
-            <select name="symbol" id="symbol">
-                <option value="">All Pairs</option>
-                {% for pair in trading_pairs %}
-                <option value="{{ pair.symbol }}" {% if current_symbol == pair.symbol %}selected{% endif %}>{{ pair.symbol }}</option>
-                {% endfor %}
-            </select>
-        </div>
-        
-        <button type="submit" class="btn btn-secondary">Filter</button>
-        <a href="{% url 'trading:trade_list' %}" class="btn btn-secondary">Clear</a>
     </form>
-    
+
     <!-- Trade Table -->
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th>Time</th>
-                <th>Symbol</th>
-                <th>Side</th>
-                <th>Quantity</th>
-                <th>Entry Price</th>
-                <th>Exit Price</th>
-                <th>P&L</th>
-                <th>P&L %</th>
-                <th>Mode</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for trade in trades %}
-            <tr>
-                <td>{{ trade.created_at|date:"M d, H:i" }}</td>
-                <td>{{ trade.trading_pair.symbol }}</td>
-                <td><span class="side side-{{ trade.side|lower }}">{{ trade.side }}</span></td>
-                <td>{{ trade.quantity|floatformat:6 }}</td>
-                <td>${{ trade.entry_price|floatformat:2 }}</td>
-                <td>{% if trade.exit_price %}${{ trade.exit_price|floatformat:2 }}{% else %}<span class="text-muted">-</span>{% endif %}</td>
-                <td class="{% if trade.pnl >= 0 %}text-success{% elif trade.pnl < 0 %}text-danger{% endif %}">
-                    {% if trade.pnl %}${{ trade.pnl|floatformat:2 }}{% else %}<span class="text-muted">-</span>{% endif %}
-                </td>
-                <td class="{% if trade.pnl_percent >= 0 %}text-success{% elif trade.pnl_percent < 0 %}text-danger{% endif %}">
-                    {% if trade.pnl_percent %}{{ trade.pnl_percent|floatformat:2 }}%{% else %}<span class="text-muted">-</span>{% endif %}
-                </td>
-                <td>
-                    {% if trade.is_simulated %}
-                    <span class="badge badge-warning">Sim</span>
-                    {% else %}
-                    <span class="badge badge-success">Live</span>
-                    {% endif %}
-                </td>
-                <td>
-                    {% if trade.exit_price %}
-                    <span class="status status-stopped">Closed</span>
-                    {% else %}
-                    <span class="status status-active">Open</span>
-                    {% endif %}
-                </td>
-            </tr>
-            {% empty %}
-            <tr>
-                <td colspan="10" class="text-muted">No trades found matching your criteria.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-    </table>
+    <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-700">
+                <thead class="bg-slate-700/50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Time</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Symbol</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Side</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Quantity</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Entry Price</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Exit Price</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">P&L</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">P&L %</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Mode</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    {% for trade in trades %}
+                    <tr class="transition-colors hover:bg-slate-700/50">
+                        <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-400">{{ trade.created_at|date:"M d, H:i" }}</td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm font-medium text-slate-100">{{ trade.trading_pair.symbol }}</td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm">
+                            <span class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold {% if trade.side == 'BUY' %}bg-emerald-900/50 text-emerald-400{% else %}bg-red-900/50 text-red-400{% endif %}">
+                                <span class="h-1.5 w-1.5 rounded-full {% if trade.side == 'BUY' %}bg-emerald-400{% else %}bg-red-400{% endif %}"></span>
+                                {{ trade.side }}
+                            </span>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-300">{{ trade.quantity|floatformat:6 }}</td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-300">${{ trade.entry_price|floatformat:2 }}</td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-300">
+                            {% if trade.exit_price %}${{ trade.exit_price|floatformat:2 }}{% else %}<span class="text-slate-500">-</span>{% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm font-medium {% if trade.pnl >= 0 %}text-emerald-400{% elif trade.pnl < 0 %}text-red-400{% else %}text-slate-500{% endif %}">
+                            {% if trade.pnl %}${{ trade.pnl|floatformat:2 }}{% else %}<span class="text-slate-500">-</span>{% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm font-medium {% if trade.pnl_percent >= 0 %}text-emerald-400{% elif trade.pnl_percent < 0 %}text-red-400{% else %}text-slate-500{% endif %}">
+                            {% if trade.pnl_percent %}{{ trade.pnl_percent|floatformat:2 }}%{% else %}<span class="text-slate-500">-</span>{% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm">
+                            {% if trade.is_simulated %}
+                            <span class="inline-flex items-center rounded-full bg-amber-900/50 px-2.5 py-0.5 text-xs font-medium text-amber-400">Sim</span>
+                            {% else %}
+                            <span class="inline-flex items-center rounded-full bg-emerald-900/50 px-2.5 py-0.5 text-xs font-medium text-emerald-400">Live</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm">
+                            {% if trade.exit_price %}
+                            <span class="inline-flex items-center rounded-full bg-slate-600 px-2.5 py-0.5 text-xs font-medium text-slate-300">Closed</span>
+                            {% else %}
+                            <span class="inline-flex items-center rounded-full bg-sky-900/50 px-2.5 py-0.5 text-xs font-medium text-sky-400">Open</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="px-4 py-8 text-center text-sm text-slate-500">No trades found matching your criteria.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
     
+    <!-- Pagination -->
     {% if page_obj.has_other_pages %}
-    <nav class="pagination">
-        {% if page_obj.has_previous %}
-        <a href="?page={{ page_obj.previous_page_number }}{% if current_side %}&side={{ current_side }}{% endif %}{% if current_mode %}&mode={{ current_mode }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_profit %}&profit={{ current_profit }}{% endif %}{% if current_symbol %}&symbol={{ current_symbol }}{% endif %}">Previous</a>
-        {% endif %}
-        <span>Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
-        {% if page_obj.has_next %}
-        <a href="?page={{ page_obj.next_page_number }}{% if current_side %}&side={{ current_side }}{% endif %}{% if current_mode %}&mode={{ current_mode }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_profit %}&profit={{ current_profit }}{% endif %}{% if current_symbol %}&symbol={{ current_symbol }}{% endif %}">Next</a>
-        {% endif %}
+    <nav class="mt-6 flex items-center justify-between" aria-label="Pagination">
+        <div class="flex flex-1 justify-between sm:justify-end">
+            {% if page_obj.has_previous %}
+            <a href="?page={{ page_obj.previous_page_number }}{% if current_side %}&side={{ current_side }}{% endif %}{% if current_mode %}&mode={{ current_mode }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_profit %}&profit={{ current_profit }}{% endif %}{% if current_symbol %}&symbol={{ current_symbol }}{% endif %}" 
+               class="inline-flex items-center rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900">
+                Previous
+            </a>
+            {% endif %}
+            <span class="mx-4 flex items-center text-sm text-slate-400">
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+            {% if page_obj.has_next %}
+            <a href="?page={{ page_obj.next_page_number }}{% if current_side %}&side={{ current_side }}{% endif %}{% if current_mode %}&mode={{ current_mode }}{% endif %}{% if current_status %}&status={{ current_status }}{% endif %}{% if current_profit %}&profit={{ current_profit }}{% endif %}{% if current_symbol %}&symbol={{ current_symbol }}{% endif %}" 
+               class="inline-flex items-center rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900">
+                Next
+            </a>
+            {% endif %}
+        </div>
     </nav>
     {% endif %}
 </div>

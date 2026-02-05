@@ -3,212 +3,289 @@
 {% block title %}Dashboard - Crypt Master{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Trading Dashboard</h1>
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">Trading Dashboard</h1>
+    </div>
     
     {% if dry_run_mode %}
-    <div class="alert alert-warning">
-        <strong>Dry-Run Mode Active</strong> - All trades are simulated. No real orders will be placed.
+    <div class="mb-6 rounded-lg border border-amber-500/50 bg-amber-900/20 p-4">
+        <div class="flex">
+            <svg class="h-5 w-5 flex-shrink-0 text-amber-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+            </svg>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-amber-400">Dry-Run Mode Active</p>
+                <p class="mt-1 text-sm text-amber-300/80">All trades are simulated. No real orders will be placed.</p>
+            </div>
+        </div>
     </div>
     {% endif %}
     
-    <!-- Portfolio Overview -->
-    <div class="row">
-        <div class="col portfolio-card">
-            <h2>Portfolio Overview</h2>
-            {% if portfolio %}
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <span class="stat-label">Total Value</span>
-                    <span class="stat-value">${{ portfolio.total_value|floatformat:2 }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Available Balance</span>
-                    <span class="stat-value">${{ portfolio.available_balance|floatformat:2 }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Allocated to Bots</span>
-                    <span class="stat-value">${{ portfolio.allocated_to_bots|floatformat:2 }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Current Drawdown</span>
-                    <span class="stat-value {% if portfolio.drawdown > 10 %}text-danger{% elif portfolio.drawdown > 5 %}text-warning{% else %}text-success{% endif %}">
-                        {{ portfolio.drawdown|floatformat:2 }}%
+    <!-- Portfolio & Trade Stats -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <!-- Portfolio Overview -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-semibold text-slate-100">Portfolio Overview</h2>
+                    <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                        <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                        <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Your overall account balance and allocation. Total Value = Available Balance + Allocated to Bots.</span>
                     </span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">High Water Mark</span>
-                    <span class="stat-value">${{ portfolio.high_water_mark|floatformat:2 }}</span>
                 </div>
             </div>
-            {% else %}
-            <p class="text-muted">No portfolio data available yet.</p>
-            {% endif %}
+            <div class="px-4 py-5 sm:px-6">
+                {% if portfolio %}
+                <div class="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <dt class="flex items-center gap-1 text-sm font-medium text-slate-400">
+                            Total Value
+                            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                                <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Combined value of all your assets including funds in active bots.</span>
+                            </span>
+                        </dt>
+                        <dd class="mt-1 text-xl font-semibold text-slate-100">${{ portfolio.total_value|floatformat:2 }}</dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <dt class="flex items-center gap-1 text-sm font-medium text-slate-400">
+                            Available Balance
+                            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                                <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Funds available to create new bots or withdraw.</span>
+                            </span>
+                        </dt>
+                        <dd class="mt-1 text-xl font-semibold text-slate-100">${{ portfolio.available_balance|floatformat:2 }}</dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <dt class="text-sm font-medium text-slate-400">Allocated to Bots</dt>
+                        <dd class="mt-1 text-xl font-semibold text-slate-100">${{ portfolio.allocated_to_bots|floatformat:2 }}</dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <dt class="flex items-center gap-1 text-sm font-medium text-slate-400">
+                            Current Drawdown
+                            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                                <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Percentage decline from your highest portfolio value. Lower is better. Above 10% triggers risk warnings.</span>
+                            </span>
+                        </dt>
+                        <dd class="mt-1 text-xl font-semibold {% if portfolio.drawdown > 10 %}text-red-400{% elif portfolio.drawdown > 5 %}text-amber-400{% else %}text-emerald-400{% endif %}">{{ portfolio.drawdown|floatformat:2 }}%</dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4 sm:col-span-2">
+                        <dt class="flex items-center gap-1 text-sm font-medium text-slate-400">
+                            High Water Mark
+                            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                                <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">The highest value your portfolio has ever reached. Used to calculate drawdown.</span>
+                            </span>
+                        </dt>
+                        <dd class="mt-1 text-xl font-semibold text-slate-100">${{ portfolio.high_water_mark|floatformat:2 }}</dd>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-500">No portfolio data available yet.</p>
+                {% endif %}
+            </div>
         </div>
         
-        <div class="col trade-stats-card">
-            <h2>Trade Statistics</h2>
-            <div class="stats-grid">
-                <div class="stat-item">
-                    <span class="stat-label">Total Trades</span>
-                    <span class="stat-value">{{ trade_stats.total_trades }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Open Positions</span>
-                    <span class="stat-value">{{ trade_stats.open_positions }}</span>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-label">Win Rate</span>
-                    <span class="stat-value {% if trade_stats.win_rate >= 50 %}text-success{% else %}text-danger{% endif %}">
-                        {{ trade_stats.win_rate|floatformat:1 }}%
+        <!-- Trade Statistics -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-semibold text-slate-100">Trade Statistics</h2>
+                    <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                        <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                        <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Summary of all your trading activity. Win Rate above 50% indicates profitable trading.</span>
                     </span>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-label">Total P&L</span>
-                    <span class="stat-value {% if trade_stats.total_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        ${{ trade_stats.total_pnl|floatformat:2 }}
-                    </span>
+            </div>
+            <div class="px-4 py-5 sm:px-6">
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <dt class="text-sm font-medium text-slate-400">Total Trades</dt>
+                        <dd class="mt-1 text-xl font-semibold text-slate-100">{{ trade_stats.total_trades }}</dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <dt class="text-sm font-medium text-slate-400">Open Positions</dt>
+                        <dd class="mt-1 text-xl font-semibold text-slate-100">{{ trade_stats.open_positions }}</dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <dt class="flex items-center gap-1 text-sm font-medium text-slate-400">
+                            Win Rate
+                            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                                <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Percentage of trades that were profitable. Green = above 50%, Red = below 50%.</span>
+                            </span>
+                        </dt>
+                        <dd class="mt-1 text-xl font-semibold {% if trade_stats.win_rate >= 50 %}text-emerald-400{% else %}text-red-400{% endif %}">{{ trade_stats.win_rate|floatformat:1 }}%</dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <dt class="text-sm font-medium text-slate-400">Total P&L</dt>
+                        <dd class="mt-1 text-xl font-semibold {% if trade_stats.total_pnl >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">${{ trade_stats.total_pnl|floatformat:2 }}</dd>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
     
     <!-- Active Bots Section -->
-    <div class="row">
-        <div class="col bots-card">
-            <div class="card-header">
-                <h2>Active Bots</h2>
-                <span class="badge">{{ active_bots_count }} active</span>
-            </div>
-            
-            <div class="bot-summary">
-                <div class="summary-item">
-                    <span class="summary-label">Total Invested</span>
-                    <span class="summary-value">${{ total_invested|floatformat:2 }}</span>
+    <div class="mt-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="flex items-center justify-between border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">Active Bots</h2>
+            <span class="inline-flex items-center rounded-full bg-indigo-600 px-2.5 py-0.5 text-xs font-medium text-white">{{ active_bots_count }} active</span>
+        </div>
+        <div class="px-4 py-5 sm:px-6">
+            <!-- Bot Summary Stats -->
+            <div class="mb-6 grid grid-cols-2 gap-4 rounded-lg bg-slate-700/30 p-4 sm:grid-cols-4">
+                <div class="text-center">
+                    <dt class="text-xs font-medium text-slate-400">Total Invested</dt>
+                    <dd class="mt-1 text-lg font-semibold text-slate-100">${{ total_invested|floatformat:2 }}</dd>
                 </div>
-                <div class="summary-item">
-                    <span class="summary-label">Total P&L</span>
-                    <span class="summary-value {% if total_bots_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
-                        ${{ total_bots_pnl|floatformat:2 }}
-                    </span>
+                <div class="text-center">
+                    <dt class="text-xs font-medium text-slate-400">Total P&L</dt>
+                    <dd class="mt-1 text-lg font-semibold {% if total_bots_pnl >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">${{ total_bots_pnl|floatformat:2 }}</dd>
                 </div>
-                <div class="summary-item">
-                    <span class="summary-label">Grid Bots</span>
-                    <span class="summary-value">{{ grid_bots_count }}</span>
+                <div class="text-center">
+                    <dt class="text-xs font-medium text-slate-400">Grid Bots</dt>
+                    <dd class="mt-1 text-lg font-semibold text-slate-100">{{ grid_bots_count }}</dd>
                 </div>
-                <div class="summary-item">
-                    <span class="summary-label">DCA Bots</span>
-                    <span class="summary-value">{{ dca_bots_count }}</span>
+                <div class="text-center">
+                    <dt class="text-xs font-medium text-slate-400">DCA Bots</dt>
+                    <dd class="mt-1 text-lg font-semibold text-slate-100">{{ dca_bots_count }}</dd>
                 </div>
             </div>
             
             {% if active_bots %}
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Type</th>
-                        <th>Symbol</th>
-                        <th>Invested</th>
-                        <th>P&L</th>
-                        <th>Status</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for bot in active_bots %}
-                    <tr>
-                        <td><span class="bot-type bot-type-{{ bot.bot_type|lower }}">{{ bot.bot_type }}</span></td>
-                        <td>{{ bot.trading_pair.symbol }}</td>
-                        <td>${{ bot.invested_amount|floatformat:2 }}</td>
-                        <td class="{% if bot.current_pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {% if bot.current_pnl %}${{ bot.current_pnl|floatformat:2 }}{% else %}-{% endif %}
-                        </td>
-                        <td><span class="status status-{{ bot.status|lower }}">{{ bot.status }}</span></td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <p class="view-all"><a href="{% url 'bots:bot_list' %}">View all bots →</a></p>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-700">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Type</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Symbol</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Invested</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">P&L</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Status</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700">
+                        {% for bot in active_bots %}
+                        <tr class="transition-colors hover:bg-slate-700/50">
+                            <td class="whitespace-nowrap px-4 py-4 text-sm">
+                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {% if bot.bot_type == 'GRID' %}bg-indigo-900/50 text-indigo-400{% elif bot.bot_type == 'DCA' %}bg-purple-900/50 text-purple-400{% else %}bg-sky-900/50 text-sky-400{% endif %}">{{ bot.bot_type }}</span>
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-100">{{ bot.trading_pair.symbol }}</td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-100">${{ bot.invested_amount|floatformat:2 }}</td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm {% if bot.current_pnl >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">{% if bot.current_pnl %}${{ bot.current_pnl|floatformat:2 }}{% else %}-{% endif %}</td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm">
+                                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium {% if bot.status == 'ACTIVE' %}bg-emerald-900/50 text-emerald-400{% elif bot.status == 'STOPPED' %}bg-slate-600 text-slate-300{% elif bot.status == 'ERROR' %}bg-red-900/50 text-red-400{% else %}bg-amber-900/50 text-amber-400{% endif %}">{{ bot.status }}</span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 text-right">
+                <a href="{% url 'bots:bot_list' %}" class="text-sm font-medium text-indigo-400 transition-colors hover:text-indigo-300 focus:outline-none focus:underline">View all bots →</a>
+            </div>
             {% else %}
-            <p class="text-muted">No active bots.</p>
+            <p class="text-sm text-slate-500">No active bots.</p>
             {% endif %}
         </div>
     </div>
     
     <!-- Recent Signals and Trades -->
-    <div class="row">
-        <div class="col signals-card">
-            <div class="card-header">
-                <h2>Recent Signals</h2>
-                <div class="signal-badges">
-                    <span class="badge badge-primary">{{ actionable_signals_count }} actionable</span>
-                    <span class="badge badge-success">{{ high_confidence_signals_count }} high confidence</span>
+    <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <!-- Recent Signals -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-slate-700 px-4 py-4 sm:px-6">
+                <h2 class="text-lg font-semibold text-slate-100">Recent Signals</h2>
+                <div class="flex gap-2">
+                    <span class="inline-flex items-center rounded-full bg-indigo-600 px-2.5 py-0.5 text-xs font-medium text-white">{{ actionable_signals_count }} actionable</span>
+                    <span class="inline-flex items-center rounded-full bg-emerald-600 px-2.5 py-0.5 text-xs font-medium text-white">{{ high_confidence_signals_count }} high confidence</span>
                 </div>
             </div>
-            
-            {% if recent_signals %}
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Symbol</th>
-                        <th>Direction</th>
-                        <th>Confidence</th>
-                        <th>Executed</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for signal in recent_signals %}
-                    <tr>
-                        <td>{{ signal.created_at|date:"H:i" }}</td>
-                        <td>{{ signal.trading_pair.symbol }}</td>
-                        <td><span class="direction direction-{{ signal.direction|lower }}">{{ signal.direction }}</span></td>
-                        <td>
-                            <span class="confidence {% if signal.confidence >= 85 %}confidence-high{% elif signal.confidence >= 70 %}confidence-medium{% else %}confidence-low{% endif %}">
-                                {{ signal.confidence|floatformat:1 }}%
-                            </span>
-                        </td>
-                        <td>{{ signal.executed|yesno:"✓,✗" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <p class="view-all"><a href="{% url 'trading:signal_list' %}">View all signals →</a></p>
-            {% else %}
-            <p class="text-muted">No recent signals.</p>
-            {% endif %}
+            <div class="px-4 py-5 sm:px-6">
+                {% if recent_signals %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-700">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Time</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Symbol</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Direction</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Confidence</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Executed</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700">
+                            {% for signal in recent_signals %}
+                            <tr class="transition-colors hover:bg-slate-700/50">
+                                <td class="whitespace-nowrap px-3 py-3 text-sm text-slate-400">{{ signal.created_at|date:"H:i" }}</td>
+                                <td class="whitespace-nowrap px-3 py-3 text-sm text-slate-100">{{ signal.trading_pair.symbol }}</td>
+                                <td class="whitespace-nowrap px-3 py-3 text-sm">
+                                    <span class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold {% if signal.direction == 'BUY' %}bg-emerald-900/50 text-emerald-400{% elif signal.direction == 'SELL' %}bg-red-900/50 text-red-400{% else %}bg-slate-600 text-slate-300{% endif %}">
+                                        <span class="h-1.5 w-1.5 rounded-full {% if signal.direction == 'BUY' %}bg-emerald-400{% elif signal.direction == 'SELL' %}bg-red-400{% else %}bg-slate-400{% endif %}"></span>
+                                        {{ signal.direction }}
+                                    </span>
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-3 text-sm font-medium {% if signal.confidence >= 85 %}text-emerald-400{% elif signal.confidence >= 70 %}text-amber-400{% else %}text-slate-400{% endif %}">{{ signal.confidence|floatformat:1 }}%</td>
+                                <td class="whitespace-nowrap px-3 py-3 text-sm">{{ signal.executed|yesno:"✓,✗" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4 text-right">
+                    <a href="{% url 'trading:signal_list' %}" class="text-sm font-medium text-indigo-400 transition-colors hover:text-indigo-300 focus:outline-none focus:underline">View all signals →</a>
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-500">No recent signals.</p>
+                {% endif %}
+            </div>
         </div>
         
-        <div class="col trades-card">
-            <h2>Recent Trades</h2>
-            {% if recent_trades %}
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Symbol</th>
-                        <th>Side</th>
-                        <th>Entry</th>
-                        <th>P&L</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for trade in recent_trades %}
-                    <tr>
-                        <td>{{ trade.created_at|date:"H:i" }}</td>
-                        <td>{{ trade.trading_pair.symbol }}</td>
-                        <td><span class="side side-{{ trade.side|lower }}">{{ trade.side }}</span></td>
-                        <td>${{ trade.entry_price|floatformat:2 }}</td>
-                        <td class="{% if trade.pnl >= 0 %}text-success{% else %}text-danger{% endif %}">
-                            {% if trade.pnl %}${{ trade.pnl|floatformat:2 }}{% else %}-{% endif %}
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <p class="view-all"><a href="{% url 'trading:trade_list' %}">View all trades →</a></p>
-            {% else %}
-            <p class="text-muted">No recent trades.</p>
-            {% endif %}
+        <!-- Recent Trades -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <h2 class="text-lg font-semibold text-slate-100">Recent Trades</h2>
+            </div>
+            <div class="px-4 py-5 sm:px-6">
+                {% if recent_trades %}
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-slate-700">
+                        <thead>
+                            <tr>
+                                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Time</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Symbol</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Side</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Entry</th>
+                                <th class="px-3 py-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">P&L</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-700">
+                            {% for trade in recent_trades %}
+                            <tr class="transition-colors hover:bg-slate-700/50">
+                                <td class="whitespace-nowrap px-3 py-3 text-sm text-slate-400">{{ trade.created_at|date:"H:i" }}</td>
+                                <td class="whitespace-nowrap px-3 py-3 text-sm text-slate-100">{{ trade.trading_pair.symbol }}</td>
+                                <td class="whitespace-nowrap px-3 py-3 text-sm">
+                                    <span class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium {% if trade.side == 'BUY' %}bg-emerald-900/50 text-emerald-400{% else %}bg-red-900/50 text-red-400{% endif %}">{{ trade.side }}</span>
+                                </td>
+                                <td class="whitespace-nowrap px-3 py-3 text-sm text-slate-100">${{ trade.entry_price|floatformat:2 }}</td>
+                                <td class="whitespace-nowrap px-3 py-3 text-sm {% if trade.pnl >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">{% if trade.pnl %}${{ trade.pnl|floatformat:2 }}{% else %}-{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-4 text-right">
+                    <a href="{% url 'trading:trade_list' %}" class="text-sm font-medium text-indigo-400 transition-colors hover:text-indigo-300 focus:outline-none focus:underline">View all trades →</a>
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-500">No recent trades.</p>
+                {% endif %}
+            </div>
         </div>
     </div>
 </div>

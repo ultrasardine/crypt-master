@@ -1,15 +1,36 @@
 """Bot management models."""
 
-from decimal import Decimal
+from __future__ import annotations
 
+from decimal import Decimal
+from typing import TYPE_CHECKING
+
+from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import QuerySet, Sum
 
 from apps.core.models import TimeStampedModel, TradingPair
 
+if TYPE_CHECKING:
+    pass
+
 
 class BotQuerySet(QuerySet):
     """Custom QuerySet for Bot model with common filtering methods."""
+
+    def for_user(self, user: User) -> "BotQuerySet":
+        """
+        Filter bots to only those owned by the specified user.
+
+        Args:
+            user: The user to filter bots for.
+
+        Returns:
+            QuerySet filtered to the user's bots.
+
+        Requirements: 3.2 - Filter results to only include bots owned by user
+        """
+        return self.filter(user=user)
 
     def active(self) -> "BotQuerySet":
         """Return only active bots."""
@@ -69,6 +90,20 @@ class BotManager(models.Manager):
         """Return custom queryset."""
         return BotQuerySet(self.model, using=self._db)
 
+    def for_user(self, user: User) -> BotQuerySet:
+        """
+        Get all bots for a specific user.
+
+        Args:
+            user: The user to filter bots for.
+
+        Returns:
+            QuerySet filtered to the user's bots.
+
+        Requirements: 3.2 - Filter results to only include bots owned by user
+        """
+        return self.get_queryset().for_user(user)
+
     def active(self) -> BotQuerySet:
         """Return only active bots."""
         return self.get_queryset().active()
@@ -122,8 +157,18 @@ class Bot(TimeStampedModel):
     Represents a Pionex trading bot.
 
     Tracks bot configuration, status, and performance.
+
+    Requirements:
+    - 3.1: Include a foreign key reference to the owning User
+    - 3.6: BotEvent inherits user association from parent Bot
     """
 
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="bots",
+        help_text="The user who owns this bot",
+    )
     pionex_bot_id = models.CharField(max_length=100, unique=True, db_index=True)
     bot_type = models.CharField(max_length=20, choices=BotType.choices)
     trading_pair = models.ForeignKey(
@@ -156,6 +201,10 @@ class Bot(TimeStampedModel):
             models.Index(fields=["bot_type", "-created_at"]),
             models.Index(fields=["trading_pair", "-created_at"]),
             models.Index(fields=["is_simulated", "status"]),
+            # New indexes for user-filtered queries (Requirements: 3.1)
+            models.Index(fields=["user", "status", "-created_at"]),
+            models.Index(fields=["user", "trading_pair", "-created_at"]),
+            models.Index(fields=["user", "is_simulated", "status"]),
         ]
 
     def __str__(self) -> str:

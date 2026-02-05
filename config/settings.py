@@ -39,8 +39,10 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # Third-party apps
     "rest_framework",
+    "rest_framework.authtoken",  # Token authentication for API access
     "corsheaders",
     "channels",
+    "django_celery_beat",  # Database-backed periodic task scheduler
     # Local apps
     "apps.core",
     "apps.dashboard",
@@ -59,6 +61,9 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Login required middleware for portal authentication
+    # Requirements: 8.4, 8.5 - Require authentication for all portal pages
+    "lib.multitenancy.middleware.LoginRequiredMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -123,6 +128,30 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
+# Authentication settings
+# Requirements:
+# - 8.1: Support Django's built-in session authentication for portal access
+# - 8.2: Create a session and redirect to the dashboard on login
+# - 8.3: Invalidate the session and clear cookies on logout
+# - 8.4: Require authentication for all pages except login and registration
+# - 8.5: Redirect unauthenticated users to the login page
+LOGIN_URL = "/accounts/login/"
+LOGIN_REDIRECT_URL = "/"  # Redirect to dashboard after login
+LOGOUT_REDIRECT_URL = "/accounts/login/"  # Redirect to login after logout
+
+# URLs exempt from login requirement (used by LoginRequiredMiddleware)
+# These paths don't require authentication
+LOGIN_EXEMPT_URLS = [
+    r"^/accounts/login/?$",
+    r"^/accounts/logout/?$",
+    r"^/accounts/register/?$",
+    r"^/health/?$",
+    r"^/api/",  # API uses token authentication
+    r"^/admin/",  # Admin has its own authentication
+    r"^/static/",  # Static files
+    r"^/__debug__/",  # Django debug toolbar
+]
+
 # Internationalization
 # https://docs.djangoproject.com/en/5.1/topics/i18n/
 LANGUAGE_CODE = "en-us"
@@ -164,12 +193,16 @@ CELERY_TASK_TRACK_STARTED = True
 CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 
 # Django REST Framework Configuration
+# Requirements:
+# - 9.1: Support token-based authentication for API access using TokenAuthentication
+# - 9.5: Support both session authentication (for portal) and token authentication (for API)
 REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": [
         "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_AUTHENTICATION_CLASSES": [
         "rest_framework.authentication.SessionAuthentication",
+        "rest_framework.authentication.TokenAuthentication",
     ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 50,

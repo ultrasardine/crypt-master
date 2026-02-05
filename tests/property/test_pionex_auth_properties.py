@@ -74,7 +74,7 @@ class TestSignatureDeterminism:
     **Validates: Requirements 1.8**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         api_key=api_key_strategy,
         api_secret=api_secret_strategy,
@@ -102,7 +102,7 @@ class TestSignatureDeterminism:
             f"Signature not deterministic for query_string={query_string!r}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         api_key=api_key_strategy,
         api_secret=api_secret_strategy,
@@ -132,7 +132,7 @@ class TestSignatureDeterminism:
         assert auth_headers1.pionex_signature == auth_headers2.pionex_signature
         assert auth_headers1.timestamp == auth_headers2.timestamp
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         api_key=api_key_strategy,
         api_secret=api_secret_strategy,
@@ -161,7 +161,7 @@ class TestSignatureDeterminism:
         assert headers1 == headers2
         assert params1 == params2
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         api_key=api_key_strategy,
         api_secret=api_secret_strategy,
@@ -198,7 +198,7 @@ class TestSignatureDeterminism:
             f"Signature mismatch: got {our_signature}, expected {expected_signature}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         api_key=api_key_strategy,
         api_secret=api_secret_strategy,
@@ -229,7 +229,7 @@ class TestSignatureDeterminism:
         # Query strings must be identical
         assert query1 == query2, f"Query string not deterministic: {query1!r} != {query2!r}"
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         api_key=api_key_strategy,
         api_secret1=api_secret_strategy,

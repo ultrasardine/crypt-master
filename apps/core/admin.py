@@ -2,6 +2,8 @@
 
 from django.contrib import admin
 
+from lib.multitenancy.admin import AdminAuditMixin
+
 from .models import PortfolioSnapshot, SystemConfig, TradingPair
 
 
@@ -16,18 +18,20 @@ class TradingPairAdmin(admin.ModelAdmin):
 
 
 @admin.register(PortfolioSnapshot)
-class PortfolioSnapshotAdmin(admin.ModelAdmin):
-    """Admin for PortfolioSnapshot model."""
+class PortfolioSnapshotAdmin(AdminAuditMixin, admin.ModelAdmin):
+    """Admin for PortfolioSnapshot model with audit logging."""
 
     list_display = [
         "created_at",
+        "user",
         "total_value",
         "available_balance",
         "allocated_to_bots",
         "drawdown",
         "is_simulated",
     ]
-    list_filter = ["is_simulated"]
+    list_filter = ["user", "is_simulated"]
+    search_fields = ["user__username"]
     ordering = ["-created_at"]
 
 

@@ -1,0 +1,221 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Page Header -->
+    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">My Profile</h1>
+            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Manage your account settings, trading preferences, and API credentials from this page.</span>
+            </span>
+        </div>
+        <a href="{% url 'core:profile_edit' %}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900">
+            Edit Profile
+        </a>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <!-- Account Information -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <h2 class="text-lg font-semibold text-slate-100">Account Information</h2>
+            </div>
+            <div class="px-4 py-5 sm:px-6">
+                <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <dt class="text-sm font-medium text-slate-400">Username</dt>
+                        <dd class="mt-1 text-base font-medium text-slate-100">{{ user.username }}</dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <dt class="text-sm font-medium text-slate-400">Email</dt>
+                        <dd class="mt-1 text-base font-medium text-slate-100">{{ user.email }}</dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4 sm:col-span-2">
+                        <dt class="text-sm font-medium text-slate-400">Member Since</dt>
+                        <dd class="mt-1 text-base font-medium text-slate-100">{{ user.date_joined|date:"M d, Y" }}</dd>
+                    </div>
+                </dl>
+            </div>
+        </div>
+
+        <!-- Trading Preferences -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-semibold text-slate-100">Trading Preferences</h2>
+                    <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                        <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                        <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Your default trading settings. These affect how bots are created and how much risk is taken per trade.</span>
+                    </span>
+                </div>
+            </div>
+            <div class="px-4 py-5 sm:px-6">
+                <dl class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <dt class="flex items-center gap-1 text-sm font-medium text-slate-400">
+                            Default Trading Mode
+                            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                                <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Dry Run simulates trades without real money. Live mode executes real trades on Pionex. Start with Dry Run to test strategies safely.</span>
+                            </span>
+                        </dt>
+                        <dd class="mt-2">
+                            {% if profile.default_trading_mode == 'dry_run' %}
+                            <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">Dry Run</span>
+                            {% else %}
+                            <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">Live</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <dt class="flex items-center gap-1 text-sm font-medium text-slate-400">
+                            Risk Tolerance
+                            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                                <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Conservative: smaller positions, lower risk. Moderate: balanced approach. Aggressive: larger positions, higher potential returns but more risk.</span>
+                            </span>
+                        </dt>
+                        <dd class="mt-2">
+                            {% if profile.risk_tolerance == 'conservative' %}
+                            <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-medium text-emerald-800">Conservative</span>
+                            {% elif profile.risk_tolerance == 'moderate' %}
+                            <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-800">Moderate</span>
+                            {% else %}
+                            <span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-medium text-red-800">Aggressive</span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4 sm:col-span-2">
+                        <dt class="text-sm font-medium text-slate-400">Email Notifications</dt>
+                        <dd class="mt-2">
+                            {% if profile.notification_email_enabled %}
+                            <span class="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400">
+                                <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                                </svg>
+                                Enabled
+                            </span>
+                            {% else %}
+                            <span class="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                                <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                                </svg>
+                                Disabled
+                            </span>
+                            {% endif %}
+                        </dd>
+                    </div>
+                </dl>
+
+                <!-- Active Trading Pairs -->
+                <div class="mt-6">
+                    <h3 class="text-sm font-medium text-slate-400">Active Trading Pairs</h3>
+                    {% if profile.active_trading_pairs %}
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        {% for pair in profile.active_trading_pairs %}
+                        <span class="inline-flex items-center rounded-full bg-slate-600 px-2.5 py-0.5 text-xs font-medium text-slate-200">{{ pair }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="mt-2 text-sm text-slate-500">No trading pairs configured.</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- API Credentials -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-semibold text-slate-100">Pionex API Credentials</h2>
+                    <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                        <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                        <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">API keys from your Pionex account are required for live trading. Without them, you can only use Dry Run mode.</span>
+                    </span>
+                </div>
+            </div>
+            <div class="px-4 py-5 sm:px-6">
+                <div class="rounded-lg bg-slate-700/50 p-4">
+                    <div class="flex items-center justify-between">
+                        <span class="text-sm font-medium text-slate-400">API Key Status</span>
+                        {% if has_api_keys %}
+                        <span class="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400">
+                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                            </svg>
+                            Configured
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 text-sm font-medium text-red-400">
+                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                            Not Set
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="mt-4 flex flex-col gap-3 sm:flex-row">
+                    <a href="{% url 'core:api_key_management' %}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                        {% if has_api_keys %}Update API Keys{% else %}Set API Keys{% endif %}
+                    </a>
+                    {% if has_api_keys %}
+                    <form method="post" action="{% url 'core:api_key_clear' %}">
+                        {% csrf_token %}
+                        <button type="submit" onclick="return confirm('Are you sure you want to clear your API credentials?');" class="inline-flex w-full items-center justify-center rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-slate-800 sm:w-auto">
+                            Clear API Keys
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- API Token -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-lg font-semibold text-slate-100">API Token</h2>
+                    <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                        <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                        <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Use this token to authenticate with the Crypt Master REST API for programmatic access or third-party integrations.</span>
+                    </span>
+                </div>
+            </div>
+            <div class="px-4 py-5 sm:px-6">
+                <p class="text-sm text-slate-400">Use this token to authenticate API requests.</p>
+                <div class="mt-4 space-y-3">
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <div class="flex items-center justify-between">
+                            <span class="text-sm font-medium text-slate-400">Token Status</span>
+                            {% if has_api_token %}
+                            <span class="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400">
+                                <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                                </svg>
+                                Generated
+                            </span>
+                            {% else %}
+                            <span class="text-sm font-medium text-slate-500">Not Generated</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    {% if api_token_masked %}
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <span class="text-sm font-medium text-slate-400">Token</span>
+                        <code class="mt-1 block text-sm text-indigo-400">{{ api_token_masked }}</code>
+                    </div>
+                    {% endif %}
+                </div>
+                <a href="{% url 'core:api_token' %}" class="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 shadow-sm transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                    Manage API Token
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

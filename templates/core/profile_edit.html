@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Profile - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">Edit Profile</h1>
+        <p class="mt-2 text-sm text-slate-400">Update your trading preferences and settings.</p>
+    </div>
+
+    <!-- Form Card -->
+    <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">Trading Preferences</h2>
+        </div>
+        <div class="px-4 py-6 sm:px-6">
+            {% if form.errors %}
+            <div class="mb-6 rounded-lg border border-red-500/50 bg-red-900/20 p-4">
+                <div class="flex">
+                    <svg class="h-5 w-5 flex-shrink-0 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                    </svg>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium text-red-400">Please correct the errors below.</p>
+                        {% for field in form %}
+                            {% for error in field.errors %}
+                            <p class="mt-1 text-sm text-red-300"><span class="font-medium">{{ field.label }}:</span> {{ error }}</p>
+                            {% endfor %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <form method="post" class="space-y-6">
+                {% csrf_token %}
+                
+                <div>
+                    <label for="id_default_trading_mode" class="block text-sm font-medium text-slate-300">Default Trading Mode</label>
+                    <select name="default_trading_mode" id="id_default_trading_mode" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                        <option value="dry_run" {% if form.instance.default_trading_mode == 'dry_run' %}selected{% endif %}>Dry Run (Simulation)</option>
+                        <option value="live" {% if form.instance.default_trading_mode == 'live' %}selected{% endif %}>Live Trading</option>
+                    </select>
+                    <p class="mt-1.5 text-xs text-slate-500">Choose whether new bots should run in simulation or live mode by default.</p>
+                </div>
+
+                <div>
+                    <label for="id_risk_tolerance" class="block text-sm font-medium text-slate-300">Risk Tolerance</label>
+                    <select name="risk_tolerance" id="id_risk_tolerance" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                        <option value="conservative" {% if form.instance.risk_tolerance == 'conservative' %}selected{% endif %}>Conservative</option>
+                        <option value="moderate" {% if form.instance.risk_tolerance == 'moderate' %}selected{% endif %}>Moderate</option>
+                        <option value="aggressive" {% if form.instance.risk_tolerance == 'aggressive' %}selected{% endif %}>Aggressive</option>
+                    </select>
+                    <p class="mt-1.5 text-xs text-slate-500">Affects position sizing and risk management parameters.</p>
+                </div>
+
+                <div class="flex items-start">
+                    <div class="flex h-6 items-center">
+                        <input type="checkbox" 
+                               name="notification_email_enabled" 
+                               id="id_notification_email_enabled"
+                               {% if form.instance.notification_email_enabled %}checked{% endif %}
+                               class="h-4 w-4 rounded border-slate-600 bg-slate-700 text-indigo-600 focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                    </div>
+                    <div class="ml-3">
+                        <label for="id_notification_email_enabled" class="text-sm font-medium text-slate-300">Enable Email Notifications</label>
+                        <p class="text-xs text-slate-500">Receive email alerts for important trading events.</p>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="id_active_trading_pairs" class="block text-sm font-medium text-slate-300">Active Trading Pairs</label>
+                    <textarea name="active_trading_pairs" 
+                              id="id_active_trading_pairs" 
+                              rows="3" 
+                              placeholder="BTC_USDT, ETH_USDT, SOL_USDT"
+                              class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 placeholder-slate-400 shadow-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">{{ form.initial.active_trading_pairs|default:'' }}</textarea>
+                    <p class="mt-1.5 text-xs text-slate-500">Comma-separated list of trading pairs you want to monitor (e.g., BTC_USDT, ETH_USDT). Signals will be filtered to show only these pairs.</p>
+                </div>
+
+                <div class="flex flex-col gap-3 border-t border-slate-700 pt-6 sm:flex-row">
+                    <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                        Save Changes
+                    </button>
+                    <a href="{% url 'core:profile' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 shadow-sm transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                        Cancel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -37,7 +37,7 @@ services:
       --access-logfile -
       --error-logfile -
     ports:
-      - "8000:8000"
+      - "14800:8000"
     environment:
       # Django Settings
       - DJANGO_SECRET_KEY=${DJANGO_SECRET_KEY}
@@ -107,9 +107,9 @@ services:
       - MACD_SIGNAL=${MACD_SIGNAL:-9}
       - BOLLINGER_PERIOD=${BOLLINGER_PERIOD:-20}
       - BOLLINGER_STD=${BOLLINGER_STD:-2.0}
-      # Optional LLM Configuration
-      - LLM_ENABLED=${LLM_ENABLED:-False}
-      - OLLAMA_URL=${OLLAMA_URL:-http://host.docker.internal:11434}
+      # LLM Configuration - Ollama service for news sentiment analysis
+      - LLM_ENABLED=${LLM_ENABLED:-True}
+      - OLLAMA_URL=http://ollama:11434
       - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
     volumes:
       - log_files:/app/logs
@@ -120,7 +120,17 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      ollama:
+        condition: service_healthy
+      ollama-init:
+        condition: service_completed_successfully
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "cat /proc/1/cmdline | grep -q market_agent || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ===========================================================================
   # Bot Management Agent - Bot lifecycle management, performance monitoring
@@ -161,6 +171,12 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "cat /proc/1/cmdline | grep -q bot_agent || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ===========================================================================
   # Celery Worker - Async tasks (notifications, reports)
@@ -194,6 +210,12 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "cat /proc/1/cmdline | grep -q celery || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
 
   # ===========================================================================
   # Celery Beat - Scheduled tasks (cleanup, daily reports)
@@ -223,6 +245,12 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "cat /proc/1/cmdline | grep -q celery || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
 
   # ===========================================================================
   # PostgreSQL Database - Persistent data storage
@@ -237,7 +265,7 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     ports:
-      - "5432:5432"
+      - "14532:5432"
     networks:
       - crypt-network
     restart: unless-stopped
@@ -249,6 +277,58 @@ services:
       start_period: 10s
 
   # ===========================================================================
+  # Ollama - Local LLM for news sentiment analysis
+  # ===========================================================================
+  # Provides LLM inference for crypto news sentiment analysis
+  # Models are pulled on first startup via ollama-init service
+  ollama:
+    image: ollama/ollama:latest
+    container_name: crypt-master-ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "14434:11434"
+    networks:
+      - crypt-network
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: ${OLLAMA_MEMORY_LIMIT:-4G}
+        reservations:
+          memory: 2G
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # ===========================================================================
+  # Ollama Init - Pull required models on startup
+  # ===========================================================================
+  # One-shot container that pulls the configured model, then exits
+  # Runs after ollama is healthy, before market-agent starts
+  ollama-init:
+    image: ollama/ollama:latest
+    container_name: crypt-master-ollama-init
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        echo "Pulling model: ${OLLAMA_MODEL:-llama3.2}..."
+        ollama pull ${OLLAMA_MODEL:-llama3.2}
+        echo "Model pull complete."
+    environment:
+      - OLLAMA_HOST=http://ollama:11434
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2}
+    networks:
+      - crypt-network
+    depends_on:
+      ollama:
+        condition: service_healthy
+    restart: "no"
+
+  # ===========================================================================
   # Redis - Cache, Pub/Sub messaging, Celery broker
   # ===========================================================================
   redis:
@@ -258,7 +338,7 @@ services:
     volumes:
       - redis_data:/data
     ports:
-      - "6379:6379"
+      - "14379:6379"
     networks:
       - crypt-network
     restart: unless-stopped
@@ -296,4 +376,9 @@ volumes:
   # Celery beat schedule persistence
   celerybeat_schedule:
     name: crypt-master-celerybeat-schedule
+    driver: local
+
+  # Ollama model storage
+  ollama_data:
+    name: crypt-master-ollama-data
     driver: local

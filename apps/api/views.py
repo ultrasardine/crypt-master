@@ -5,13 +5,16 @@ from decimal import Decimal
 
 from django.utils import timezone
 from rest_framework import generics, status
+from rest_framework.authtoken.models import Token
 from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.bots.models import Bot, BotEvent, BotStatus
 from apps.core.models import PortfolioSnapshot, SystemConfig, TradingPair
 from apps.trading.models import Signal, Trade
+from lib.multitenancy.mixins import UserIsolationMixin, UserOwnershipMixin
 
 from .serializers import (
     BacktestRequestSerializer,
@@ -36,20 +39,42 @@ class StandardPagination(PageNumberPagination):
 
 
 class PortfolioView(APIView):
-    """API view for current portfolio state."""
+    """API view for current portfolio state.
+
+    Applies user isolation to ensure users only see their own portfolio data.
+
+    Requirements:
+    - 5.2: Filter results to only include snapshots owned by the authenticated user
+    - 5.4: Return 404 for cross-user access attempts
+    """
 
     def get(self, request):
-        """Get the latest portfolio snapshot.
+        """Get the latest portfolio snapshot for the authenticated user.
 
         Query params:
             simulated: bool - If true, return simulated portfolio
+
+        Requirements:
+        - 5.2: Filter results to only include snapshots owned by the authenticated user
         """
         is_simulated = request.query_params.get("simulated", "false").lower() == "true"
 
-        if is_simulated:
-            snapshot = PortfolioSnapshot.objects.latest_simulated()
+        # Start with base queryset
+        queryset = PortfolioSnapshot.objects.all()
+
+        # Apply user filtering (admin bypass)
+        if request.user.is_authenticated:
+            if not request.user.is_superuser:
+                queryset = queryset.filter(user=request.user)
         else:
-            snapshot = PortfolioSnapshot.objects.latest_live()
+            # Unauthenticated users get no results
+            queryset = queryset.none()
+
+        # Filter by simulated status and get latest
+        if is_simulated:
+            snapshot = queryset.simulated().first()
+        else:
+            snapshot = queryset.live().first()
 
         if snapshot:
             serializer = PortfolioSerializer(snapshot)
@@ -60,15 +85,30 @@ class PortfolioView(APIView):
         )
 
 
-class PortfolioHistoryView(generics.ListAPIView):
-    """API view for portfolio history."""
+class PortfolioHistoryView(UserIsolationMixin, generics.ListAPIView):
+    """API view for portfolio history.
+
+    Applies user isolation to ensure users only see their own portfolio history.
+
+    Requirements:
+    - 5.2: Filter results to only include snapshots owned by the authenticated user
+    - 5.4: Return 404 for cross-user access attempts
+    """
 
     serializer_class = PortfolioSerializer
     pagination_class = StandardPagination
+    queryset = PortfolioSnapshot.objects.all()
 
     def get_queryset(self):
-        """Get portfolio snapshots with optional filtering."""
-        queryset = PortfolioSnapshot.objects.all()
+        """Get portfolio snapshots with optional filtering.
+
+        First applies user isolation via the mixin, then applies additional filters.
+
+        Requirements:
+        - 5.2: Filter results to only include snapshots owned by the authenticated user
+        """
+        # Get user-filtered queryset from mixin
+        queryset = super().get_queryset()
 
         # Filter by simulated status
         is_simulated = self.request.query_params.get("simulated", "false").lower() == "true"
@@ -117,14 +157,48 @@ class TradingPairListView(generics.ListAPIView):
 
 
 class SignalListView(generics.ListAPIView):
-    """API view for listing signals."""
+    """API view for listing signals.
+
+    Signals are shared across users (no user FK), but are filtered based on
+    the authenticated user's active_trading_pairs preferences.
+
+    Requirements:
+    - 6.3: Display signals for trading pairs the user has configured
+    """
 
     serializer_class = SignalSerializer
     pagination_class = StandardPagination
 
     def get_queryset(self):
-        """Get signals with optional filtering."""
+        """Get signals with optional filtering.
+
+        Applies user preference filtering based on active_trading_pairs,
+        then applies additional query parameter filters.
+
+        Requirements:
+        - 6.3: Display signals for trading pairs the user has configured
+        """
         queryset = Signal.objects.select_related("trading_pair").all()
+
+        # Filter by user's active trading pairs if authenticated
+        # Signals are shared but filtered by user preferences
+        if self.request.user.is_authenticated:
+            # Admin users see all signals (bypass filtering)
+            if not self.request.user.is_superuser:
+                # Get user's active trading pairs from their profile
+                if hasattr(self.request.user, "profile"):
+                    active_pairs = self.request.user.profile.active_trading_pairs
+                    if active_pairs:
+                        # Filter signals to only those for user's active pairs
+                        queryset = queryset.filter(trading_pair__symbol__in=active_pairs)
+                    # If user has no active pairs configured, show no signals
+                    else:
+                        queryset = queryset.none()
+                else:
+                    # User has no profile, show no signals
+                    queryset = queryset.none()
+        # Unauthenticated users see all signals (public market data)
+        # This maintains backward compatibility for public signal viewing
 
         # Filter by symbol
         symbol = self.request.query_params.get("symbol")
@@ -170,10 +244,18 @@ class SignalDetailView(generics.RetrieveAPIView):
     serializer_class = SignalSerializer
 
 
-class BotListView(generics.ListCreateAPIView):
-    """API view for listing and creating bots."""
+class BotListView(UserIsolationMixin, generics.ListCreateAPIView):
+    """API view for listing and creating bots.
+
+    Applies user isolation to ensure users only see their own bots.
+
+    Requirements:
+    - 3.2: Filter results to only include bots owned by the authenticated user
+    - 3.3: Associate new bots with the authenticated user
+    """
 
     pagination_class = StandardPagination
+    queryset = Bot.objects.select_related("trading_pair").prefetch_related("events").all()
 
     def get_serializer_class(self):
         """Return appropriate serializer based on request method."""
@@ -182,8 +264,15 @@ class BotListView(generics.ListCreateAPIView):
         return BotSerializer
 
     def get_queryset(self):
-        """Get bots with optional filtering."""
-        queryset = Bot.objects.select_related("trading_pair").prefetch_related("events").all()
+        """Get bots with optional filtering.
+
+        First applies user isolation via the mixin, then applies additional filters.
+
+        Requirements:
+        - 3.2: Filter results to only include bots owned by the authenticated user
+        """
+        # Get user-filtered queryset from mixin
+        queryset = super().get_queryset()
 
         # Filter by status
         bot_status = self.request.query_params.get("status")
@@ -219,7 +308,11 @@ class BotListView(generics.ListCreateAPIView):
         return queryset
 
     def perform_create(self, serializer):
-        """Create a new bot with generated pionex_bot_id."""
+        """Create a new bot with generated pionex_bot_id and associate with user.
+
+        Requirements:
+        - 3.3: Associate new bots with the authenticated user
+        """
         # Generate a unique bot ID (in real implementation, this would come from Pionex API)
         pionex_bot_id = (
             f"sim_{uuid.uuid4().hex[:16]}"
@@ -228,6 +321,7 @@ class BotListView(generics.ListCreateAPIView):
         )
 
         bot = serializer.save(
+            user=self.request.user,  # Associate bot with authenticated user
             pionex_bot_id=pionex_bot_id,
             status=BotStatus.ACTIVE,
             current_value=serializer.validated_data["invested_amount"],
@@ -247,15 +341,30 @@ class BotListView(generics.ListCreateAPIView):
         )
 
 
-class BotDetailView(generics.RetrieveDestroyAPIView):
-    """API view for bot details and deletion (stop)."""
+class BotDetailView(UserOwnershipMixin, UserIsolationMixin, generics.RetrieveDestroyAPIView):
+    """API view for bot details and deletion (stop).
+
+    Applies user isolation to ensure users can only access their own bots.
+    Uses UserOwnershipMixin to verify ownership before stop/delete operations.
+
+    Requirements:
+    - 3.4: Return 404 for cross-user access attempts
+    - 3.5: Verify ownership before stopping/deleting bots
+    """
 
     queryset = Bot.objects.select_related("trading_pair").prefetch_related("events").all()
     serializer_class = BotSerializer
 
     def destroy(self, request, *args, **kwargs):
-        """Stop a bot instead of deleting it."""
-        bot = self.get_object()
+        """Stop a bot instead of deleting it.
+
+        Ownership is verified by the UserIsolationMixin.get_object() method
+        which is called by self.get_object().
+
+        Requirements:
+        - 3.5: Verify ownership before stopping bots
+        """
+        bot = self.get_object()  # This verifies ownership via mixin
 
         if bot.status == BotStatus.STOPPED:
             return Response(
@@ -287,15 +396,29 @@ class BotDetailView(generics.RetrieveDestroyAPIView):
         return Response(serializer.data)
 
 
-class TradeListView(generics.ListAPIView):
-    """API view for listing trades."""
+class TradeListView(UserIsolationMixin, generics.ListAPIView):
+    """API view for listing trades.
+
+    Applies user isolation to ensure users only see their own trades.
+
+    Requirements:
+    - 4.2: Filter results to only include trades owned by the authenticated user
+    """
 
     serializer_class = TradeSerializer
     pagination_class = StandardPagination
+    queryset = Trade.objects.select_related("trading_pair", "signal").all()
 
     def get_queryset(self):
-        """Get trades with optional filtering."""
-        queryset = Trade.objects.select_related("trading_pair", "signal").all()
+        """Get trades with optional filtering.
+
+        First applies user isolation via the mixin, then applies additional filters.
+
+        Requirements:
+        - 4.2: Filter results to only include trades owned by the authenticated user
+        """
+        # Get user-filtered queryset from mixin
+        queryset = super().get_queryset()
 
         # Filter by symbol
         symbol = self.request.query_params.get("symbol")
@@ -345,15 +468,27 @@ class TradeListView(generics.ListAPIView):
         return queryset
 
 
-class TradeDetailView(generics.RetrieveAPIView):
-    """API view for trade details."""
+class TradeDetailView(UserIsolationMixin, generics.RetrieveAPIView):
+    """API view for trade details.
+
+    Applies user isolation to ensure users can only access their own trades.
+
+    Requirements:
+    - 4.4: Return 404 for cross-user access attempts
+    """
 
     queryset = Trade.objects.select_related("trading_pair", "signal").all()
     serializer_class = TradeSerializer
 
 
 class TradeStatisticsView(APIView):
-    """API view for trade statistics."""
+    """API view for trade statistics.
+
+    Filters statistics to only include trades belonging to the authenticated user.
+
+    Requirements:
+    - 4.5: Only include trades belonging to the requesting user in statistics
+    """
 
     def get(self, request):
         """Get trade statistics.
@@ -361,11 +496,23 @@ class TradeStatisticsView(APIView):
         Query params:
             simulated: bool - If true, return simulated trade stats
             symbol: str - Filter by trading pair symbol
+
+        Requirements:
+        - 4.5: Only include trades belonging to the requesting user in statistics
         """
         is_simulated = request.query_params.get("simulated", "false").lower() == "true"
         symbol = request.query_params.get("symbol")
 
+        # Start with all trades
         queryset = Trade.objects.all()
+
+        # Apply user filtering (admin bypass)
+        if request.user.is_authenticated:
+            if not request.user.is_superuser:
+                queryset = queryset.filter(user=request.user)
+        else:
+            # Unauthenticated users get empty results
+            queryset = queryset.none()
 
         if is_simulated:
             queryset = queryset.simulated()
@@ -501,3 +648,75 @@ class BacktestView(APIView):
         }
 
         return Response(result, status=status.HTTP_200_OK)
+
+
+class TokenGenerateView(APIView):
+    """API view for generating authentication tokens.
+
+    Generates a new token for the authenticated user. If the user already has
+    a token, returns the existing token.
+
+    Requirements:
+    - 9.1: Support token-based authentication for API access using TokenAuthentication
+    - 9.2: Generate a unique token associated with the user's account
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Generate or retrieve an API token for the authenticated user.
+
+        Returns the existing token if one exists, otherwise creates a new one.
+
+        Requirements:
+        - 9.2: Generate a unique token associated with the user's account
+        """
+        token, created = Token.objects.get_or_create(user=request.user)
+
+        return Response(
+            {
+                "token": token.key,
+                "created": created,
+                "user_id": request.user.id,
+                "username": request.user.username,
+            },
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class TokenRegenerateView(APIView):
+    """API view for regenerating authentication tokens.
+
+    Invalidates the user's existing token and generates a new one.
+
+    Requirements:
+    - 9.6: Invalidate the previous token when regenerating
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        """Regenerate the API token for the authenticated user.
+
+        Deletes the existing token (if any) and creates a new one.
+        This invalidates any clients using the old token.
+
+        Requirements:
+        - 9.6: Invalidate the previous token when regenerating
+        """
+        # Delete existing token if it exists
+        Token.objects.filter(user=request.user).delete()
+
+        # Create a new token
+        token = Token.objects.create(user=request.user)
+
+        return Response(
+            {
+                "token": token.key,
+                "regenerated": True,
+                "user_id": request.user.id,
+                "username": request.user.username,
+                "message": "Token regenerated successfully. Previous token has been invalidated.",
+            },
+            status=status.HTTP_201_CREATED,
+        )

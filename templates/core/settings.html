@@ -3,113 +3,164 @@
 {% block title %}Settings - Crypt Master{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>System Settings</h1>
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">System Settings</h1>
+        <p class="mt-2 text-sm text-slate-400">Configure trading mode and system parameters.</p>
+    </div>
     
-    <!-- Trading Mode Section -->
-    <div class="row">
-        <div class="col settings-section">
-            <h2>Trading Mode</h2>
-            <div class="mode-status">
-                {% if dry_run_mode %}
-                <div class="mode-badge mode-simulated">
-                    <span class="mode-icon">🔒</span>
-                    <span class="mode-text">Dry-Run Mode</span>
-                </div>
-                <p class="mode-description">All trades are simulated. No real orders will be placed on Pionex.</p>
-                <form method="post" action="{% url 'core:toggle_mode' %}" class="mode-toggle-form">
-                    {% csrf_token %}
-                    <div class="form-group">
-                        <label for="confirm">Type "LIVE" to enable live trading:</label>
-                        <input type="text" name="confirm" id="confirm" placeholder="LIVE">
+    <!-- Trading Mode & API Configuration -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <!-- Trading Mode Section -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <h2 class="text-lg font-semibold text-slate-100">
+                    Trading Mode
+                    <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                        <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                        <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Dry-Run mode simulates all trades without real money. Always start here! Switch to Live only after thorough testing.</span>
+                    </span>
+                </h2>
+            </div>
+            <div class="px-4 py-6 sm:px-6">
+                <div class="text-center">
+                    {% if dry_run_mode %}
+                    <div class="inline-flex items-center gap-2 rounded-lg bg-amber-900/30 px-6 py-3">
+                        <span class="text-2xl" aria-hidden="true">🔒</span>
+                        <span class="text-lg font-semibold text-amber-400">Dry-Run Mode</span>
                     </div>
-                    <button type="submit" class="btn btn-danger">Switch to Live Trading</button>
-                </form>
-                {% else %}
-                <div class="mode-badge mode-live">
-                    <span class="mode-icon">⚡</span>
-                    <span class="mode-text">Live Trading</span>
+                    <p class="mt-4 text-sm text-slate-400">All trades are simulated. No real orders will be placed on Pionex.</p>
+                    <form method="post" action="{% url 'core:toggle_mode' %}" class="mt-6">
+                        {% csrf_token %}
+                        <div class="mx-auto max-w-xs">
+                            <label for="confirm" class="block text-sm font-medium text-slate-300">Type "LIVE" to enable live trading:</label>
+                            <input type="text" name="confirm" id="confirm" placeholder="LIVE" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 placeholder-slate-400 shadow-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                        </div>
+                        <button type="submit" class="mt-4 inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                            Switch to Live Trading
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="inline-flex items-center gap-2 rounded-lg bg-red-900/30 px-6 py-3">
+                        <span class="text-2xl" aria-hidden="true">⚡</span>
+                        <span class="text-lg font-semibold text-red-400">Live Trading</span>
+                    </div>
+                    <p class="mt-4 text-sm text-red-400">Real orders will be placed on Pionex. Use with caution!</p>
+                    <form method="post" action="{% url 'core:toggle_mode' %}" class="mt-6">
+                        {% csrf_token %}
+                        <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                            Switch to Dry-Run Mode
+                        </button>
+                    </form>
+                    {% endif %}
                 </div>
-                <p class="mode-description text-danger">Real orders will be placed on Pionex. Use with caution!</p>
-                <form method="post" action="{% url 'core:toggle_mode' %}">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-success">Switch to Dry-Run Mode</button>
-                </form>
-                {% endif %}
             </div>
         </div>
         
-        <div class="col settings-section">
-            <h2>API Configuration</h2>
-            <div class="api-status">
-                <div class="status-item">
-                    <span class="status-label">API Key</span>
-                    {% if api_key_configured %}
-                    <span class="status-value text-success">✓ Configured</span>
-                    {% else %}
-                    <span class="status-value text-danger">✗ Not Set</span>
-                    {% endif %}
-                </div>
-                <div class="status-item">
-                    <span class="status-label">API Secret</span>
-                    {% if api_secret_configured %}
-                    <span class="status-value text-success">✓ Configured</span>
-                    {% else %}
-                    <span class="status-value text-danger">✗ Not Set</span>
-                    {% endif %}
-                </div>
+        <!-- API Configuration -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <h2 class="text-lg font-semibold text-slate-100">API Configuration</h2>
             </div>
-            <a href="{% url 'core:api_key_setup' %}" class="btn btn-secondary">API Key Setup Guide</a>
+            <div class="px-4 py-6 sm:px-6">
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between rounded-lg bg-slate-700/50 p-4">
+                        <span class="text-sm font-medium text-slate-400">API Key</span>
+                        {% if api_key_configured %}
+                        <span class="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400">
+                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                            </svg>
+                            Configured
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 text-sm font-medium text-red-400">
+                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                            Not Set
+                        </span>
+                        {% endif %}
+                    </div>
+                    <div class="flex items-center justify-between rounded-lg bg-slate-700/50 p-4">
+                        <span class="text-sm font-medium text-slate-400">API Secret</span>
+                        {% if api_secret_configured %}
+                        <span class="inline-flex items-center gap-1.5 text-sm font-medium text-emerald-400">
+                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z" clip-rule="evenodd" />
+                            </svg>
+                            Configured
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center gap-1.5 text-sm font-medium text-red-400">
+                            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 20 20" aria-hidden="true">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd" />
+                            </svg>
+                            Not Set
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <a href="{% url 'core:api_key_setup' %}" class="mt-4 inline-flex items-center justify-center rounded-lg border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-200 shadow-sm transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                    API Key Setup Guide
+                </a>
+            </div>
         </div>
     </div>
     
     <!-- Configuration Parameters -->
-    <div class="row">
-        <div class="col settings-section">
-            <h2>Configuration Parameters</h2>
-            <p class="text-muted">Adjust trading parameters. Changes take effect immediately.</p>
-            
-            <div class="config-list">
+    <div class="mt-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">Configuration Parameters</h2>
+            <p class="mt-1 text-sm text-slate-400">Adjust trading parameters. Changes take effect immediately.</p>
+        </div>
+        <div class="px-4 py-6 sm:px-6">
+            <div class="space-y-4">
                 {% for config in config_display %}
-                <div class="config-item">
-                    <div class="config-header">
-                        <span class="config-key">{{ config.key }}</span>
+                <div class="rounded-lg bg-slate-700/50 p-4">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <code class="text-sm font-semibold text-indigo-400">{{ config.key }}</code>
                         {% if config.is_default %}
-                        <span class="badge badge-secondary">Default</span>
+                        <span class="inline-flex items-center rounded-full bg-slate-600 px-2.5 py-0.5 text-xs font-medium text-slate-200">Default</span>
                         {% else %}
-                        <span class="badge badge-primary">Custom</span>
+                        <span class="inline-flex items-center rounded-full bg-indigo-600 px-2.5 py-0.5 text-xs font-medium text-white">Custom</span>
                         {% endif %}
                     </div>
-                    <p class="config-description">{{ config.description }}</p>
+                    <p class="mt-2 text-sm text-slate-400">{{ config.description }}</p>
                     
-                    <form method="post" action="{% url 'core:settings_update' %}" class="config-form">
+                    <form method="post" action="{% url 'core:settings_update' %}" class="mt-4">
                         {% csrf_token %}
                         <input type="hidden" name="key" value="{{ config.key }}">
                         <input type="hidden" name="type" value="{{ config.type }}">
                         
-                        <div class="config-input-group">
+                        <div class="flex flex-col gap-3 sm:flex-row sm:items-center">
                             {% if config.type == "boolean" %}
-                            <select name="value" class="config-input">
+                            <select name="value" class="block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:w-48 sm:text-sm">
                                 <option value="true" {% if config.value %}selected{% endif %}>True</option>
                                 <option value="false" {% if not config.value %}selected{% endif %}>False</option>
                             </select>
                             {% elif config.type == "number" %}
-                            <input type="number" name="value" value="{{ config.value }}" step="0.01" class="config-input">
+                            <input type="number" name="value" value="{{ config.value }}" step="0.01" class="block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:w-48 sm:text-sm">
                             {% elif config.type == "integer" %}
-                            <input type="number" name="value" value="{{ config.value }}" step="1" class="config-input">
+                            <input type="number" name="value" value="{{ config.value }}" step="1" class="block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:w-48 sm:text-sm">
                             {% else %}
-                            <input type="text" name="value" value="{{ config.value }}" class="config-input">
+                            <input type="text" name="value" value="{{ config.value }}" class="block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 shadow-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:w-48 sm:text-sm">
                             {% endif %}
                             
-                            <button type="submit" class="btn btn-sm btn-primary">Save</button>
+                            <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-700">
+                                Save
+                            </button>
                         </div>
                     </form>
                     
                     {% if not config.is_default %}
-                    <form method="post" action="{% url 'core:settings_reset' %}" class="reset-form">
+                    <form method="post" action="{% url 'core:settings_reset' %}" class="mt-3">
                         {% csrf_token %}
                         <input type="hidden" name="key" value="{{ config.key }}">
-                        <button type="submit" class="btn btn-sm btn-secondary">Reset to Default ({{ config.default }})</button>
+                        <button type="submit" class="inline-flex items-center justify-center rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm font-medium text-slate-300 shadow-sm transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-700">
+                            Reset to Default ({{ config.default }})
+                        </button>
                     </form>
                     {% endif %}
                 </div>
@@ -119,30 +170,34 @@
     </div>
     
     <!-- Raw Configuration -->
-    <div class="row">
-        <div class="col settings-section">
-            <h2>All Stored Configurations</h2>
+    <div class="mt-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">All Stored Configurations</h2>
+        </div>
+        <div class="px-4 py-6 sm:px-6">
             {% if configs %}
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Key</th>
-                        <th>Value</th>
-                        <th>Last Updated</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for config in configs %}
-                    <tr>
-                        <td><code>{{ config.key }}</code></td>
-                        <td><code>{{ config.value }}</code></td>
-                        <td>{{ config.updated_at|date:"M d, Y H:i" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-700">
+                    <thead>
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Key</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Value</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Last Updated</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700">
+                        {% for config in configs %}
+                        <tr class="transition-colors hover:bg-slate-700/50">
+                            <td class="whitespace-nowrap px-4 py-4 text-sm"><code class="text-indigo-400">{{ config.key }}</code></td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm"><code class="text-slate-300">{{ config.value }}</code></td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-400">{{ config.updated_at|date:"M d, Y H:i" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             {% else %}
-            <p class="text-muted">No custom configurations stored. All values are at defaults.</p>
+            <p class="text-sm text-slate-500">No custom configurations stored. All values are at defaults.</p>
             {% endif %}
         </div>
     </div>

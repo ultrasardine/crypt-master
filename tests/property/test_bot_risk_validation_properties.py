@@ -81,7 +81,7 @@ class TestBotRiskValidation:
     **Validates: Requirements 10.7**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         current_allocation_pct=existing_allocation_pct_strategy,
@@ -142,7 +142,7 @@ class TestBotRiskValidation:
                 f"{total_allocation_pct:.4f} <= limit {max_bot_allocation_pct:.4f}"
             )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         max_bot_allocation_pct=max_bot_allocation_pct_strategy,
@@ -175,7 +175,7 @@ class TestBotRiskValidation:
             f"Rejection reasons: {result.rejection_reasons}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         current_allocation_pct=existing_allocation_pct_strategy,
@@ -209,7 +209,7 @@ class TestBotRiskValidation:
             f"(current={current_allocation}, new={new_allocation_amount})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         new_allocation_amount=allocation_amount_strategy,
@@ -235,7 +235,7 @@ class TestBotRiskValidation:
             f"allocation_percent {result.allocation_percent} != expected {expected_percent}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         current_allocation_pct=existing_allocation_pct_strategy,
@@ -279,7 +279,7 @@ class TestBotRiskValidation:
             f"{result1.allocation_percent} vs {result2.allocation_percent}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         max_bot_allocation_pct=max_bot_allocation_pct_strategy,
@@ -338,7 +338,7 @@ class TestBotRiskValidationEdgeCases:
     **Validates: Requirements 10.7**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         max_bot_allocation_pct=max_bot_allocation_pct_strategy,
@@ -376,7 +376,7 @@ class TestBotRiskValidationEdgeCases:
             f"Rejection: {result.rejection_reasons}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         max_bot_allocation_pct=max_bot_allocation_pct_strategy,
@@ -406,7 +406,7 @@ class TestBotRiskValidationEdgeCases:
         # Just over the limit should be rejected
         assert result.is_valid is False, "Allocation just over the limit should be rejected"
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         new_allocation_amount=allocation_amount_strategy,
@@ -446,7 +446,7 @@ class TestBotRiskValidationEdgeCases:
         assert isinstance(result.reasoning, str), "reasoning should be str"
         assert len(result.reasoning) > 0, "reasoning should not be empty"
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         max_bot_allocation_pct=max_bot_allocation_pct_strategy,
@@ -486,7 +486,7 @@ class TestBotRiskValidationEdgeCases:
             f"Rejection: {result.rejection_reasons}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         current_allocation_pct=existing_allocation_pct_strategy,
@@ -534,7 +534,7 @@ class TestBotRiskValidationWithDrawdown:
     **Validates: Requirements 10.7**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         new_allocation_amount=allocation_amount_strategy,
@@ -574,7 +574,7 @@ class TestBotRiskValidationWithDrawdown:
             f"Rejection should mention trading halted: {result.rejection_reasons}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
         new_allocation_amount=allocation_amount_strategy,

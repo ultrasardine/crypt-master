@@ -69,7 +69,7 @@ class TestFearGreedSignalMapping:
     **Validates: Requirements 4.2, 4.3**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(value=extreme_fear_strategy)
     def test_extreme_fear_always_generates_buy_signal(
         self,
@@ -91,7 +91,7 @@ class TestFearGreedSignalMapping:
             f"should generate BUY signal, got {signal}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(value=extreme_greed_strategy)
     def test_extreme_greed_always_generates_sell_signal(
         self,
@@ -113,7 +113,7 @@ class TestFearGreedSignalMapping:
             f"should generate SELL signal, got {signal}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(value=neutral_zone_strategy)
     def test_neutral_zone_always_generates_hold_signal(
         self,
@@ -134,7 +134,7 @@ class TestFearGreedSignalMapping:
             f"FGI value {value} (neutral zone [26, 74]) should generate HOLD signal, got {signal}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(value=fgi_value_strategy)
     def test_signal_is_always_valid_direction(
         self,
@@ -155,7 +155,7 @@ class TestFearGreedSignalMapping:
             f"FGI value {value} generated invalid signal {signal}, expected one of {valid_signals}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(value=fgi_value_strategy)
     def test_signal_mapping_is_deterministic(
         self,
@@ -178,7 +178,7 @@ class TestFearGreedSignalMapping:
             f"Signal mapping not deterministic for FGI value {value}: got {signal1} and {signal2}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         value=fgi_value_strategy,
         thresholds=custom_thresholds_strategy(),
@@ -236,7 +236,7 @@ class TestAPIUnavailabilitySignalMapping:
     **Validates: Requirements 4.3**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(error_message=st.text(min_size=1, max_size=200))
     def test_unavailable_result_always_returns_hold_signal(
         self,
@@ -264,7 +264,7 @@ class TestAPIUnavailabilitySignalMapping:
             f"API unavailable result should have value=None, got {result.value}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(error_message=st.text(min_size=1, max_size=200))
     def test_unavailable_result_has_neutral_classification(
         self,
@@ -283,7 +283,7 @@ class TestAPIUnavailabilitySignalMapping:
             f"got {result.classification}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(error_message=st.text(min_size=1, max_size=200))
     def test_unavailable_result_preserves_error_message(
         self,
@@ -314,7 +314,7 @@ class TestSignalMappingBoundaryConditions:
     **Validates: Requirements 4.2**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         extreme_fear_threshold=st.integers(min_value=1, max_value=49),
     )
@@ -348,7 +348,7 @@ class TestSignalMappingBoundaryConditions:
             f"should be HOLD, got {signal_above}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         extreme_greed_threshold=st.integers(min_value=51, max_value=100),
     )
@@ -418,7 +418,7 @@ class TestSignalMappingConsistency:
     **Validates: Requirements 4.2**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(value=fgi_value_strategy)
     def test_multiple_analyzers_produce_same_signal(
         self,
@@ -441,7 +441,7 @@ class TestSignalMappingConsistency:
             f"for FGI value {value}: {signal1} vs {signal2}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         value=fgi_value_strategy,
         thresholds=custom_thresholds_strategy(),

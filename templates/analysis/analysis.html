@@ -3,234 +3,280 @@
 {% block title %}Market Analysis - Crypt Master{% endblock %}
 
 {% block content %}
-<div class="container">
-    <h1>Market Analysis</h1>
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">
+            Market Analysis
+            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Real-time market analysis using technical indicators and sentiment data. Use this to understand market conditions before creating bots.</span>
+            </span>
+        </h1>
+    </div>
     
     <!-- Trading Pair Selector -->
-    <form method="get" class="pair-selector">
-        <div class="form-group">
-            <label for="symbol">Trading Pair</label>
-            <select name="symbol" id="symbol" onchange="this.form.submit()">
-                {% for pair in trading_pairs %}
-                <option value="{{ pair.symbol }}" {% if current_symbol == pair.symbol %}selected{% endif %}>{{ pair.symbol }}</option>
-                {% endfor %}
-            </select>
+    <form method="get" class="mb-6">
+        <div class="flex items-end gap-4">
+            <div class="w-full max-w-xs">
+                <label for="symbol" class="block text-sm font-medium text-slate-300">Trading Pair</label>
+                <select name="symbol" id="symbol" onchange="this.form.submit()" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                    {% for pair in trading_pairs %}
+                    <option value="{{ pair.symbol }}" {% if current_symbol == pair.symbol %}selected{% endif %}>{{ pair.symbol }}</option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
     </form>
     
     {% if trading_pair %}
     
     <!-- Signal Summary -->
-    <div class="summary-bar">
-        <div class="summary-item">
-            <span class="summary-label">Total Signals</span>
-            <span class="summary-value">{{ total_signals }}</span>
+    <div class="mb-6 grid grid-cols-2 gap-4 rounded-xl border border-slate-700 bg-slate-800 p-4 sm:grid-cols-4">
+        <div class="text-center">
+            <dt class="text-xs font-medium text-slate-400">Total Signals</dt>
+            <dd class="mt-1 text-lg font-semibold text-slate-100">{{ total_signals }}</dd>
         </div>
-        <div class="summary-item">
-            <span class="summary-label">Buy Signals</span>
-            <span class="summary-value text-success">{{ buy_signals }}</span>
+        <div class="text-center">
+            <dt class="text-xs font-medium text-slate-400">
+                Buy Signals
+                <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                    <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                    <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Number of BUY signals for this pair. More buy signals suggest bullish sentiment.</span>
+                </span>
+            </dt>
+            <dd class="mt-1 text-lg font-semibold text-emerald-400">{{ buy_signals }}</dd>
         </div>
-        <div class="summary-item">
-            <span class="summary-label">Sell Signals</span>
-            <span class="summary-value text-danger">{{ sell_signals }}</span>
+        <div class="text-center">
+            <dt class="text-xs font-medium text-slate-400">Sell Signals</dt>
+            <dd class="mt-1 text-lg font-semibold text-red-400">{{ sell_signals }}</dd>
         </div>
-        <div class="summary-item">
-            <span class="summary-label">Avg Confidence</span>
-            <span class="summary-value">{{ avg_confidence|floatformat:1 }}%</span>
+        <div class="text-center">
+            <dt class="text-xs font-medium text-slate-400">Avg Confidence</dt>
+            <dd class="mt-1 text-lg font-semibold text-slate-100">{{ avg_confidence|floatformat:1 }}%</dd>
         </div>
     </div>
     
-    <div class="row">
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <!-- Latest Signal -->
-        <div class="col">
-            <h2>Latest Signal</h2>
-            {% if latest_signal %}
-            <div class="signal-card signal-{{ latest_signal.direction|lower }}">
-                <div class="signal-header">
-                    <span class="direction direction-{{ latest_signal.direction|lower }}">{{ latest_signal.direction }}</span>
-                    <span class="confidence {% if latest_signal.confidence >= 85 %}confidence-high{% elif latest_signal.confidence >= 70 %}confidence-medium{% else %}confidence-low{% endif %}">
-                        {{ latest_signal.confidence|floatformat:1 }}%
-                    </span>
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <h2 class="text-lg font-semibold text-slate-100">Latest Signal</h2>
+            </div>
+            <div class="px-4 py-5 sm:px-6">
+                {% if latest_signal %}
+                <div class="rounded-lg border {% if latest_signal.direction == 'BUY' %}border-emerald-500/50 bg-emerald-900/20{% elif latest_signal.direction == 'SELL' %}border-red-500/50 bg-red-900/20{% else %}border-slate-600 bg-slate-700/50{% endif %} p-4">
+                    <div class="flex items-center justify-between">
+                        <span class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold {% if latest_signal.direction == 'BUY' %}bg-emerald-900/50 text-emerald-400{% elif latest_signal.direction == 'SELL' %}bg-red-900/50 text-red-400{% else %}bg-slate-600 text-slate-300{% endif %}">
+                            <span class="h-2 w-2 rounded-full {% if latest_signal.direction == 'BUY' %}bg-emerald-400{% elif latest_signal.direction == 'SELL' %}bg-red-400{% else %}bg-slate-400{% endif %}"></span>
+                            {{ latest_signal.direction }}
+                        </span>
+                        <span class="text-lg font-semibold {% if latest_signal.confidence >= 85 %}text-emerald-400{% elif latest_signal.confidence >= 70 %}text-amber-400{% else %}text-slate-400{% endif %}">
+                            {{ latest_signal.confidence|floatformat:1 }}%
+                        </span>
+                    </div>
+                    <p class="mt-3 text-sm text-slate-400">{{ latest_signal.created_at|date:"M d, Y H:i:s" }}</p>
+                    {% if latest_signal.reasoning %}
+                    <p class="mt-2 text-sm text-slate-300">{{ latest_signal.reasoning }}</p>
+                    {% endif %}
                 </div>
-                <div class="signal-time">{{ latest_signal.created_at|date:"M d, Y H:i:s" }}</div>
-                {% if latest_signal.reasoning %}
-                <div class="signal-reasoning">{{ latest_signal.reasoning }}</div>
+                {% else %}
+                <p class="text-sm text-slate-500">No signals available for this pair.</p>
                 {% endif %}
             </div>
-            {% else %}
-            <p class="text-muted">No signals available for this pair.</p>
-            {% endif %}
         </div>
         
         <!-- Sentiment -->
-        <div class="col">
-            <h2>Sentiment Analysis</h2>
-            {% if sentiment %}
-            <div class="indicator-grid">
-                {% if sentiment.fear_greed_index %}
-                <div class="indicator-card">
-                    <span class="indicator-name">Fear & Greed Index</span>
-                    <span class="indicator-value {% if sentiment.fear_greed_index <= 25 %}text-danger{% elif sentiment.fear_greed_index >= 75 %}text-success{% else %}text-warning{% endif %}">
-                        {{ sentiment.fear_greed_index }}
-                    </span>
-                    <span class="indicator-label">
-                        {% if sentiment.fear_greed_index <= 25 %}Extreme Fear
-                        {% elif sentiment.fear_greed_index <= 45 %}Fear
-                        {% elif sentiment.fear_greed_index <= 55 %}Neutral
-                        {% elif sentiment.fear_greed_index <= 75 %}Greed
-                        {% else %}Extreme Greed{% endif %}
-                    </span>
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <h2 class="text-lg font-semibold text-slate-100">Sentiment Analysis</h2>
+            </div>
+            <div class="px-4 py-5 sm:px-6">
+                {% if sentiment %}
+                <div class="grid grid-cols-2 gap-4">
+                    {% if sentiment.fear_greed_index %}
+                    <div class="rounded-lg bg-slate-700/50 p-4 text-center">
+                        <dt class="text-xs font-medium text-slate-400">Fear & Greed Index</dt>
+                        <dd class="mt-2 text-2xl font-bold {% if sentiment.fear_greed_index <= 25 %}text-red-400{% elif sentiment.fear_greed_index >= 75 %}text-emerald-400{% else %}text-amber-400{% endif %}">
+                            {{ sentiment.fear_greed_index }}
+                        </dd>
+                        <dd class="mt-1 text-xs text-slate-400">
+                            {% if sentiment.fear_greed_index <= 25 %}Extreme Fear
+                            {% elif sentiment.fear_greed_index <= 45 %}Fear
+                            {% elif sentiment.fear_greed_index <= 55 %}Neutral
+                            {% elif sentiment.fear_greed_index <= 75 %}Greed
+                            {% else %}Extreme Greed{% endif %}
+                        </dd>
+                    </div>
+                    {% endif %}
+                    
+                    {% if sentiment.signal %}
+                    <div class="rounded-lg bg-slate-700/50 p-4 text-center">
+                        <dt class="text-xs font-medium text-slate-400">Sentiment Signal</dt>
+                        <dd class="mt-2">
+                            <span class="inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold {% if sentiment.signal == 'BUY' %}bg-emerald-900/50 text-emerald-400{% elif sentiment.signal == 'SELL' %}bg-red-900/50 text-red-400{% else %}bg-slate-600 text-slate-300{% endif %}">
+                                {{ sentiment.signal }}
+                            </span>
+                        </dd>
+                    </div>
+                    {% endif %}
                 </div>
-                {% endif %}
-                
-                {% if sentiment.signal %}
-                <div class="indicator-card">
-                    <span class="indicator-name">Sentiment Signal</span>
-                    <span class="indicator-value">
-                        <span class="direction direction-{{ sentiment.signal|lower }}">{{ sentiment.signal }}</span>
-                    </span>
-                </div>
+                {% else %}
+                <p class="text-sm text-slate-500">No sentiment data available.</p>
                 {% endif %}
             </div>
-            {% else %}
-            <p class="text-muted">No sentiment data available.</p>
-            {% endif %}
         </div>
     </div>
-    
+
     <!-- Technical Indicators -->
-    <div class="row">
-        <div class="col">
-            <h2>Technical Indicators</h2>
+    <div class="mt-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">
+                Technical Indicators
+                <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                    <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                    <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Mathematical calculations based on price and volume. RSI below 30 = oversold (buy opportunity), above 70 = overbought (sell opportunity).</span>
+                </span>
+            </h2>
+        </div>
+        <div class="px-4 py-5 sm:px-6">
             {% if technical %}
-            <div class="indicator-grid">
+            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
                 {% if technical.rsi is not None %}
-                <div class="indicator-card">
-                    <span class="indicator-name">RSI (14)</span>
-                    <span class="indicator-value {% if technical.rsi >= 70 %}text-danger{% elif technical.rsi <= 30 %}text-success{% endif %}">
+                <div class="rounded-lg bg-slate-700/50 p-4 text-center">
+                    <dt class="text-xs font-medium text-slate-400">RSI (14)</dt>
+                    <dd class="mt-2 text-xl font-bold {% if technical.rsi >= 70 %}text-red-400{% elif technical.rsi <= 30 %}text-emerald-400{% else %}text-slate-100{% endif %}">
                         {{ technical.rsi|floatformat:2 }}
-                    </span>
-                    <span class="indicator-label">
+                    </dd>
+                    <dd class="mt-1 text-xs text-slate-400">
                         {% if technical.rsi >= 70 %}Overbought
                         {% elif technical.rsi <= 30 %}Oversold
                         {% else %}Neutral{% endif %}
-                    </span>
+                    </dd>
                 </div>
                 {% endif %}
                 
                 {% if technical.macd is not None %}
-                <div class="indicator-card">
-                    <span class="indicator-name">MACD</span>
-                    <span class="indicator-value {% if technical.macd > 0 %}text-success{% else %}text-danger{% endif %}">
+                <div class="rounded-lg bg-slate-700/50 p-4 text-center">
+                    <dt class="text-xs font-medium text-slate-400">MACD</dt>
+                    <dd class="mt-2 text-xl font-bold {% if technical.macd > 0 %}text-emerald-400{% else %}text-red-400{% endif %}">
                         {{ technical.macd|floatformat:4 }}
-                    </span>
-                    <span class="indicator-label">
+                    </dd>
+                    <dd class="mt-1 text-xs text-slate-400">
                         {% if technical.macd > 0 %}Bullish{% else %}Bearish{% endif %}
-                    </span>
+                    </dd>
                 </div>
                 {% endif %}
                 
                 {% if technical.adx is not None %}
-                <div class="indicator-card">
-                    <span class="indicator-name">ADX</span>
-                    <span class="indicator-value">{{ technical.adx|floatformat:2 }}</span>
-                    <span class="indicator-label">
+                <div class="rounded-lg bg-slate-700/50 p-4 text-center">
+                    <dt class="text-xs font-medium text-slate-400">ADX</dt>
+                    <dd class="mt-2 text-xl font-bold text-slate-100">{{ technical.adx|floatformat:2 }}</dd>
+                    <dd class="mt-1 text-xs text-slate-400">
                         {% if technical.adx >= 25 %}Strong Trend
                         {% elif technical.adx >= 20 %}Weak Trend
                         {% else %}No Trend{% endif %}
-                    </span>
+                    </dd>
                 </div>
                 {% endif %}
                 
                 {% if technical.stochastic_k is not None %}
-                <div class="indicator-card">
-                    <span class="indicator-name">Stochastic %K</span>
-                    <span class="indicator-value {% if technical.stochastic_k >= 80 %}text-danger{% elif technical.stochastic_k <= 20 %}text-success{% endif %}">
+                <div class="rounded-lg bg-slate-700/50 p-4 text-center">
+                    <dt class="text-xs font-medium text-slate-400">Stochastic %K</dt>
+                    <dd class="mt-2 text-xl font-bold {% if technical.stochastic_k >= 80 %}text-red-400{% elif technical.stochastic_k <= 20 %}text-emerald-400{% else %}text-slate-100{% endif %}">
                         {{ technical.stochastic_k|floatformat:2 }}
-                    </span>
-                    <span class="indicator-label">
+                    </dd>
+                    <dd class="mt-1 text-xs text-slate-400">
                         {% if technical.stochastic_k >= 80 %}Overbought
                         {% elif technical.stochastic_k <= 20 %}Oversold
                         {% else %}Neutral{% endif %}
-                    </span>
+                    </dd>
                 </div>
                 {% endif %}
                 
                 {% if technical.sma_20 is not None %}
-                <div class="indicator-card">
-                    <span class="indicator-name">SMA (20)</span>
-                    <span class="indicator-value">${{ technical.sma_20|floatformat:2 }}</span>
+                <div class="rounded-lg bg-slate-700/50 p-4 text-center">
+                    <dt class="text-xs font-medium text-slate-400">SMA (20)</dt>
+                    <dd class="mt-2 text-xl font-bold text-slate-100">${{ technical.sma_20|floatformat:2 }}</dd>
                 </div>
                 {% endif %}
                 
                 {% if technical.ema_20 is not None %}
-                <div class="indicator-card">
-                    <span class="indicator-name">EMA (20)</span>
-                    <span class="indicator-value">${{ technical.ema_20|floatformat:2 }}</span>
+                <div class="rounded-lg bg-slate-700/50 p-4 text-center">
+                    <dt class="text-xs font-medium text-slate-400">EMA (20)</dt>
+                    <dd class="mt-2 text-xl font-bold text-slate-100">${{ technical.ema_20|floatformat:2 }}</dd>
                 </div>
                 {% endif %}
                 
                 {% if technical.bollinger_upper is not None %}
-                <div class="indicator-card">
-                    <span class="indicator-name">Bollinger Upper</span>
-                    <span class="indicator-value">${{ technical.bollinger_upper|floatformat:2 }}</span>
+                <div class="rounded-lg bg-slate-700/50 p-4 text-center">
+                    <dt class="text-xs font-medium text-slate-400">Bollinger Upper</dt>
+                    <dd class="mt-2 text-xl font-bold text-slate-100">${{ technical.bollinger_upper|floatformat:2 }}</dd>
                 </div>
                 {% endif %}
                 
                 {% if technical.bollinger_lower is not None %}
-                <div class="indicator-card">
-                    <span class="indicator-name">Bollinger Lower</span>
-                    <span class="indicator-value">${{ technical.bollinger_lower|floatformat:2 }}</span>
+                <div class="rounded-lg bg-slate-700/50 p-4 text-center">
+                    <dt class="text-xs font-medium text-slate-400">Bollinger Lower</dt>
+                    <dd class="mt-2 text-xl font-bold text-slate-100">${{ technical.bollinger_lower|floatformat:2 }}</dd>
                 </div>
                 {% endif %}
             </div>
             {% else %}
-            <p class="text-muted">No technical indicator data available.</p>
+            <p class="text-sm text-slate-500">No technical indicator data available.</p>
             {% endif %}
         </div>
     </div>
     
     <!-- Signal History -->
-    <div class="row">
-        <div class="col">
-            <h2>Signal History</h2>
+    <div class="mt-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">Signal History</h2>
+        </div>
+        <div class="px-4 py-5 sm:px-6">
             {% if recent_signals %}
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>Time</th>
-                        <th>Direction</th>
-                        <th>Confidence</th>
-                        <th>Executed</th>
-                        <th>Reasoning</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for signal in recent_signals %}
-                    <tr>
-                        <td>{{ signal.created_at|date:"M d, H:i" }}</td>
-                        <td><span class="direction direction-{{ signal.direction|lower }}">{{ signal.direction }}</span></td>
-                        <td>
-                            <span class="confidence {% if signal.confidence >= 85 %}confidence-high{% elif signal.confidence >= 70 %}confidence-medium{% else %}confidence-low{% endif %}">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-700">
+                    <thead class="bg-slate-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Time</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Direction</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Confidence</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Executed</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Reasoning</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700">
+                        {% for signal in recent_signals %}
+                        <tr class="transition-colors hover:bg-slate-700/50">
+                            <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-400">{{ signal.created_at|date:"M d, H:i" }}</td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm">
+                                <span class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold {% if signal.direction == 'BUY' %}bg-emerald-900/50 text-emerald-400{% elif signal.direction == 'SELL' %}bg-red-900/50 text-red-400{% else %}bg-slate-600 text-slate-300{% endif %}">
+                                    {{ signal.direction }}
+                                </span>
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm font-medium {% if signal.confidence >= 85 %}text-emerald-400{% elif signal.confidence >= 70 %}text-amber-400{% else %}text-slate-400{% endif %}">
                                 {{ signal.confidence|floatformat:1 }}%
-                            </span>
-                        </td>
-                        <td>{{ signal.executed|yesno:"✓,✗" }}</td>
-                        <td>{{ signal.reasoning|truncatechars:40|default:"-" }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-            <p class="view-all"><a href="{% url 'trading:signal_list' %}?symbol={{ current_symbol }}">View all signals →</a></p>
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-300">{{ signal.executed|yesno:"✓,✗" }}</td>
+                            <td class="px-4 py-4 text-sm text-slate-400">{{ signal.reasoning|truncatechars:40|default:"-" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="mt-4 text-right">
+                <a href="{% url 'trading:signal_list' %}?symbol={{ current_symbol }}" class="text-sm font-medium text-indigo-400 transition-colors hover:text-indigo-300 focus:outline-none focus:underline">View all signals →</a>
+            </div>
             {% else %}
-            <p class="text-muted">No signal history available.</p>
+            <p class="text-sm text-slate-500">No signal history available.</p>
             {% endif %}
         </div>
     </div>
     
     {% else %}
-    <div class="alert alert-warning">
-        Trading pair not found. Please select a valid trading pair.
+    <div class="rounded-lg border border-amber-500/50 bg-amber-900/20 p-4">
+        <p class="text-sm text-amber-400">Trading pair not found. Please select a valid trading pair.</p>
     </div>
     {% endif %}
 </div>

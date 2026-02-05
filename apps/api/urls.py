@@ -12,6 +12,8 @@ from .views import (
     PortfolioView,
     SignalDetailView,
     SignalListView,
+    TokenGenerateView,
+    TokenRegenerateView,
     TradeDetailView,
     TradeListView,
     TradeStatisticsView,
@@ -21,6 +23,10 @@ from .views import (
 app_name = "api"
 
 urlpatterns = [
+    # Authentication token endpoints
+    # Requirements: 9.1, 9.2, 9.6
+    path("auth/token/", TokenGenerateView.as_view(), name="token_generate"),
+    path("auth/token/regenerate/", TokenRegenerateView.as_view(), name="token_regenerate"),
     # Portfolio endpoints
     path("portfolio/", PortfolioView.as_view(), name="portfolio"),
     path("portfolio/history/", PortfolioHistoryView.as_view(), name="portfolio_history"),

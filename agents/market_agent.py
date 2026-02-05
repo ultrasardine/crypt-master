@@ -259,7 +259,7 @@ class MarketAnalysisAgent:
         """Async context manager exit."""
         await self.close()
 
-    def _get_active_symbols(self) -> list[str]:
+    async def _get_active_symbols(self) -> list[str]:
         """
         Get list of active trading pair symbols to analyze.
 
@@ -269,9 +269,15 @@ class MarketAnalysisAgent:
         if self.config.active_symbols:
             return self.config.active_symbols
 
-        # Get active pairs from database
-        pairs = TradingPair.objects.active()
-        return [pair.symbol for pair in pairs]
+        # Get active pairs from database using sync_to_async
+        from asgiref.sync import sync_to_async
+
+        @sync_to_async
+        def fetch_symbols() -> list[str]:
+            pairs = TradingPair.objects.active()
+            return [pair.symbol for pair in pairs]
+
+        return await fetch_symbols()
 
     async def run(self) -> None:
         """
@@ -313,7 +319,7 @@ class MarketAnalysisAgent:
         """
         Perform one complete analysis cycle for all active symbols.
         """
-        symbols = self._get_active_symbols()
+        symbols = await self._get_active_symbols()
 
         if not symbols:
             logger.warning("No active symbols to analyze")
@@ -797,36 +803,42 @@ class MarketAnalysisAgent:
         Args:
             signal: The signal to store
         """
+        from asgiref.sync import sync_to_async
+
         try:
-            # Get or create trading pair
-            trading_pair, _ = TradingPair.objects.get_or_create(
-                symbol=signal.symbol,
-                defaults={
-                    "base_currency": signal.symbol.split("_")[0]
-                    if "_" in signal.symbol
-                    else signal.symbol[:3],
-                    "quote_currency": signal.symbol.split("_")[1]
-                    if "_" in signal.symbol
-                    else "USDT",
-                    "is_active": True,
-                },
-            )
+            @sync_to_async
+            def create_signal():
+                # Get or create trading pair
+                trading_pair, _ = TradingPair.objects.get_or_create(
+                    symbol=signal.symbol,
+                    defaults={
+                        "base_currency": signal.symbol.split("_")[0]
+                        if "_" in signal.symbol
+                        else signal.symbol[:3],
+                        "quote_currency": signal.symbol.split("_")[1]
+                        if "_" in signal.symbol
+                        else "USDT",
+                        "is_active": True,
+                    },
+                )
 
-            # Map signal direction to DB enum
-            direction_map = {
-                SignalDirection.BUY: DBSignalDirection.BUY,
-                SignalDirection.SELL: DBSignalDirection.SELL,
-                SignalDirection.HOLD: DBSignalDirection.HOLD,
-            }
+                # Map signal direction to DB enum
+                direction_map = {
+                    SignalDirection.BUY: DBSignalDirection.BUY,
+                    SignalDirection.SELL: DBSignalDirection.SELL,
+                    SignalDirection.HOLD: DBSignalDirection.HOLD,
+                }
 
-            # Create signal record
-            SignalModel.objects.create(
-                trading_pair=trading_pair,
-                direction=direction_map[signal.direction],
-                confidence=signal.confidence,
-                indicators=self._signal_to_json(signal)["indicators"],
-                reasoning=signal.reasoning,
-            )
+                # Create signal record
+                SignalModel.objects.create(
+                    trading_pair=trading_pair,
+                    direction=direction_map[signal.direction],
+                    confidence=signal.confidence,
+                    indicators=self._signal_to_json(signal)["indicators"],
+                    reasoning=signal.reasoning,
+                )
+
+            await create_signal()
 
             logger.debug(f"Stored signal in database: {signal.symbol}")
         except Exception as e:

@@ -2,6 +2,11 @@
 
 from lib.pionex.auth import AuthHeaders, PionexAuthenticator
 from lib.pionex.client import PionexClient
+from lib.pionex.client_factory import (
+    APIKeyDecryptionError,
+    MissingAPIKeysError,
+    PionexClientFactory,
+)
 from lib.pionex.models import (
     Candle,
     OrderBook,
@@ -20,6 +25,10 @@ __all__ = [
     "PionexAuthenticator",
     # Client
     "PionexClient",
+    # Client Factory
+    "APIKeyDecryptionError",
+    "MissingAPIKeysError",
+    "PionexClientFactory",
     # Models
     "Candle",
     "OrderBook",

@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+
+{% block title %}API Token - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Page Header -->
+    <div class="mb-8">
+        <h1 class="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">API Token Management</h1>
+        <p class="mt-2 text-sm text-slate-400">Manage your API authentication token for programmatic access.</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <!-- Token Card -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <h2 class="text-lg font-semibold text-slate-100">Your API Token</h2>
+            </div>
+            <div class="px-4 py-6 sm:px-6">
+                {% if has_token %}
+                <p class="text-sm text-slate-400">Use this token in the Authorization header for API requests:</p>
+                <div class="mt-4 flex items-center gap-3 rounded-lg bg-slate-900 p-4">
+                    <code id="token-value" class="flex-1 break-all text-sm text-indigo-400">Token {{ token }}</code>
+                    <button type="button" onclick="copyToken()" class="inline-flex flex-shrink-0 items-center justify-center rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-900" aria-label="Copy token to clipboard">
+                        Copy
+                    </button>
+                </div>
+
+                <div class="mt-6 rounded-lg border border-amber-500/50 bg-amber-900/20 p-4">
+                    <div class="flex">
+                        <svg class="h-5 w-5 flex-shrink-0 text-amber-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd" />
+                        </svg>
+                        <div class="ml-3">
+                            <p class="text-sm font-medium text-amber-400">Security Warning</p>
+                            <p class="mt-1 text-sm text-amber-300/80">Keep your token secret. Anyone with this token can access your account via the API.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6">
+                    <h3 class="text-sm font-semibold text-slate-100">Regenerate Token</h3>
+                    <p class="mt-2 text-sm text-slate-400">If you believe your token has been compromised, regenerate it. This will invalidate the current token immediately.</p>
+                    <form method="post" action="{% url 'core:api_token_regenerate' %}" class="mt-4">
+                        {% csrf_token %}
+                        <button type="submit" onclick="return confirm('Are you sure? This will invalidate your current token and any applications using it will stop working.');" class="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                            Regenerate Token
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <p class="text-sm text-slate-400">You don't have an API token yet. Generate one to access the API programmatically.</p>
+                <form method="post" action="{% url 'core:api_token_generate' %}" class="mt-4">
+                    {% csrf_token %}
+                    <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                        Generate Token
+                    </button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- API Usage -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <h2 class="text-lg font-semibold text-slate-100">API Usage</h2>
+            </div>
+            <div class="px-4 py-6 sm:px-6">
+                <div class="space-y-4">
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <h3 class="text-sm font-semibold text-slate-100">Authentication Header</h3>
+                        <p class="mt-2 text-sm text-slate-400">Include the token in your request headers:</p>
+                        <code class="mt-2 block rounded bg-slate-900 p-3 text-sm text-indigo-400">Authorization: Token your_token_here</code>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <h3 class="text-sm font-semibold text-slate-100">Example Request</h3>
+                        <p class="mt-2 text-sm text-slate-400">Using curl:</p>
+                        <code class="mt-2 block overflow-x-auto rounded bg-slate-900 p-3 text-sm text-indigo-400">curl -H "Authorization: Token {{ token|default:'your_token' }}" \<br>  {{ request.scheme }}://{{ request.get_host }}/api/v1/bots/</code>
+                    </div>
+                    <div class="rounded-lg bg-slate-700/50 p-4">
+                        <h3 class="text-sm font-semibold text-slate-100">Available Endpoints</h3>
+                        <p class="mt-2 text-sm text-slate-400">The API provides access to:</p>
+                        <ul class="mt-2 list-inside list-disc space-y-1 text-sm text-slate-400">
+                            <li><code class="text-indigo-400">/api/v1/bots/</code> - Bot management</li>
+                            <li><code class="text-indigo-400">/api/v1/trades/</code> - Trade history</li>
+                            <li><code class="text-indigo-400">/api/v1/signals/</code> - Trading signals</li>
+                            <li><code class="text-indigo-400">/api/v1/portfolio/</code> - Portfolio data</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Back Link -->
+    <div class="mt-6">
+        <a href="{% url 'core:profile' %}" class="inline-flex items-center gap-2 text-sm font-medium text-indigo-400 transition-colors hover:text-indigo-300 focus:outline-none focus:underline">
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+            Back to Profile
+        </a>
+    </div>
+</div>
+
+<script>
+function copyToken() {
+    const tokenValue = document.getElementById('token-value').textContent;
+    navigator.clipboard.writeText(tokenValue).then(function() {
+        alert('Token copied to clipboard!');
+    }, function(err) {
+        console.error('Could not copy token: ', err);
+    });
+}
+</script>
+{% endblock %}

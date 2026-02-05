@@ -27,6 +27,7 @@ Crypt Master is a fully automated cryptocurrency trading system that integrates 
 
 ### Key Capabilities
 
+- **Multi-Tenant Architecture**: Complete user data isolation with per-user encrypted API keys
 - **Multi-factor Market Analysis**: Technical indicators (RSI, MACD, Bollinger Bands, ADX, Stochastic), sentiment analysis, and volume anomaly detection
 - **Automated Bot Management**: Create, monitor, and stop Grid, DCA, and Infinity Grid bots based on market signals
 - **Risk Management**: Kelly Criterion position sizing, drawdown limits, per-trade risk limits, and automatic bot stopping
@@ -134,7 +135,9 @@ crypt-master/
 │   ├── simulation/        # Dry-run simulator
 │   ├── messaging/         # Redis pub/sub, WebSocket
 │   ├── logging/           # Structured logging
-│   └── config/            # Configuration utilities
+│   ├── config/            # Configuration utilities
+│   ├── crypto/            # API key encryption
+│   └── multitenancy/      # User data isolation
 │
 ├── templates/              # Django HTML templates
 ├── static/                 # Static assets (CSS)

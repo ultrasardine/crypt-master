@@ -2,15 +2,18 @@
 
 from django.contrib import admin
 
+from lib.multitenancy.admin import AdminAuditMixin
+
 from .models import Bot, BotEvent
 
 
 @admin.register(Bot)
-class BotAdmin(admin.ModelAdmin):
-    """Admin for Bot model."""
+class BotAdmin(AdminAuditMixin, admin.ModelAdmin):
+    """Admin for Bot model with audit logging."""
 
     list_display = [
         "pionex_bot_id",
+        "user",
         "bot_type",
         "trading_pair",
         "status",
@@ -20,8 +23,8 @@ class BotAdmin(admin.ModelAdmin):
         "is_simulated",
         "created_at",
     ]
-    list_filter = ["bot_type", "status", "is_simulated", "trading_pair"]
-    search_fields = ["pionex_bot_id", "trading_pair__symbol"]
+    list_filter = ["user", "bot_type", "status", "is_simulated", "trading_pair"]
+    search_fields = ["pionex_bot_id", "trading_pair__symbol", "user__username"]
     ordering = ["-created_at"]
     readonly_fields = ["created_at", "updated_at"]
 

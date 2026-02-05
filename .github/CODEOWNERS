@@ -1,0 +1,11 @@
+# Code Owners - These users must approve PRs to protected paths
+# See: https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Default owners for everything in the repo
+* @your-admin-username
+
+# Critical paths require admin approval
+/config/ @your-admin-username
+/docker-compose.yml @your-admin-username
+/Dockerfile @your-admin-username
+/.github/ @your-admin-username

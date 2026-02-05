@@ -1,13 +1,20 @@
 """Trading models for signals and trades."""
 
+from __future__ import annotations
+
 from datetime import timedelta
 from decimal import Decimal
+from typing import TYPE_CHECKING
 
+from django.contrib.auth.models import User
 from django.db import models
 from django.db.models import Avg, QuerySet, Sum
 from django.utils import timezone
 
 from apps.core.models import TimeStampedModel, TradingPair
+
+if TYPE_CHECKING:
+    pass
 
 
 class SignalDirection(models.TextChoices):
@@ -144,6 +151,20 @@ class TradeSide(models.TextChoices):
 class TradeQuerySet(QuerySet):
     """Custom QuerySet for Trade model with common filtering methods."""
 
+    def for_user(self, user: User) -> "TradeQuerySet":
+        """
+        Filter trades to only those owned by the specified user.
+
+        Args:
+            user: The user to filter trades for.
+
+        Returns:
+            QuerySet filtered to the user's trades.
+
+        Requirements: 4.2 - Filter results to only include trades owned by user
+        """
+        return self.filter(user=user)
+
     def recent(self, hours: int = 24) -> "TradeQuerySet":
         """Return trades from the last N hours."""
         cutoff = timezone.now() - timedelta(hours=hours)
@@ -231,6 +252,20 @@ class TradeManager(models.Manager):
         """Return custom queryset."""
         return TradeQuerySet(self.model, using=self._db)
 
+    def for_user(self, user: User) -> TradeQuerySet:
+        """
+        Get all trades for a specific user.
+
+        Args:
+            user: The user to filter trades for.
+
+        Returns:
+            QuerySet filtered to the user's trades.
+
+        Requirements: 4.2 - Filter results to only include trades owned by user
+        """
+        return self.get_queryset().for_user(user)
+
     def recent(self, hours: int = 24) -> TradeQuerySet:
         """Get recent trades."""
         return self.get_queryset().recent(hours)
@@ -270,8 +305,17 @@ class Trade(TimeStampedModel):
     Record of an executed trade.
 
     Can be linked to a signal and/or bot. Tracks entry, exit, and P&L.
+
+    Requirements:
+    - 4.1: Include a foreign key reference to the owning User
     """
 
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="trades",
+        help_text="The user who owns this trade",
+    )
     signal = models.ForeignKey(
         Signal,
         on_delete=models.SET_NULL,
@@ -305,6 +349,9 @@ class Trade(TimeStampedModel):
             models.Index(fields=["trading_pair", "-created_at"]),
             models.Index(fields=["is_simulated", "-created_at"]),
             models.Index(fields=["side", "-created_at"]),
+            # New indexes for user-filtered queries (Requirements: 4.1)
+            models.Index(fields=["user", "trading_pair", "-created_at"]),
+            models.Index(fields=["user", "is_simulated", "-created_at"]),
         ]
 
     def __str__(self) -> str:

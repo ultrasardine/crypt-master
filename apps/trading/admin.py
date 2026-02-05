@@ -2,6 +2,8 @@
 
 from django.contrib import admin
 
+from lib.multitenancy.admin import AdminAuditMixin
+
 from .models import Signal, Trade
 
 
@@ -23,11 +25,12 @@ class SignalAdmin(admin.ModelAdmin):
 
 
 @admin.register(Trade)
-class TradeAdmin(admin.ModelAdmin):
-    """Admin for Trade model."""
+class TradeAdmin(AdminAuditMixin, admin.ModelAdmin):
+    """Admin for Trade model with audit logging."""
 
     list_display = [
         "trading_pair",
+        "user",
         "side",
         "quantity",
         "entry_price",
@@ -36,7 +39,7 @@ class TradeAdmin(admin.ModelAdmin):
         "is_simulated",
         "created_at",
     ]
-    list_filter = ["side", "is_simulated", "trading_pair"]
-    search_fields = ["trading_pair__symbol", "order_id"]
+    list_filter = ["user", "side", "is_simulated", "trading_pair"]
+    search_fields = ["trading_pair__symbol", "order_id", "user__username"]
     ordering = ["-created_at"]
     readonly_fields = ["created_at", "updated_at"]

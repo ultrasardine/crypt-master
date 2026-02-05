@@ -3,8 +3,9 @@
 from rest_framework import serializers
 
 from apps.bots.models import Bot, BotEvent
-from apps.core.models import PortfolioSnapshot, SystemConfig, TradingPair
+from apps.core.models import PortfolioSnapshot, SystemConfig, TradingPair, UserProfile
 from apps.trading.models import Signal, Trade
+from lib.crypto.api_key_manager import APIKeyValidationError
 
 
 class TradingPairSerializer(serializers.ModelSerializer):
@@ -254,3 +255,158 @@ class BacktestResultSerializer(serializers.Serializer):
     sharpe_ratio = serializers.FloatField(allow_null=True)
     sortino_ratio = serializers.FloatField(allow_null=True)
     trades = TradeSerializer(many=True)
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """
+    Serializer for UserProfile model.
+
+    This serializer excludes all encrypted fields and provides write-only
+    fields for API key submission. Decrypted API keys are never exposed
+    through this serializer.
+
+    Requirements:
+    - 1.4: Display all non-sensitive settings without exposing encrypted data
+    - 2.4: Never expose decrypted API keys through any API endpoint or serializer
+    """
+
+    # Read-only field to indicate if API keys are configured
+    has_api_keys = serializers.BooleanField(read_only=True)
+
+    # Write-only fields for API key submission
+    api_key = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        help_text="Pionex API key (write-only, 16-64 alphanumeric characters)",
+    )
+    api_secret = serializers.CharField(
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        help_text="Pionex API secret (write-only, 16-64 alphanumeric characters)",
+    )
+
+    # Username from related User model (read-only)
+    username = serializers.CharField(source="user.username", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+
+    class Meta:
+        model = UserProfile
+        fields = [
+            "id",
+            "username",
+            "email",
+            "has_api_keys",
+            "api_key",
+            "api_secret",
+            "default_trading_mode",
+            "risk_tolerance",
+            "notification_email_enabled",
+            "active_trading_pairs",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "username",
+            "email",
+            "has_api_keys",
+            "created_at",
+            "updated_at",
+        ]
+        # Explicitly exclude encrypted fields - they should never be serialized
+        # Note: These fields are not in 'fields' list, so they won't be included
+
+    def validate(self, attrs):
+        """
+        Validate that both api_key and api_secret are provided together.
+
+        If one is provided, the other must also be provided.
+        """
+        api_key = attrs.get("api_key", "")
+        api_secret = attrs.get("api_secret", "")
+
+        # If either is provided, both must be provided
+        if api_key and not api_secret:
+            raise serializers.ValidationError(
+                {"api_secret": "API secret is required when providing API key."}
+            )
+        if api_secret and not api_key:
+            raise serializers.ValidationError(
+                {"api_key": "API key is required when providing API secret."}
+            )
+
+        return attrs
+
+    def update(self, instance, validated_data):
+        """
+        Update UserProfile instance.
+
+        Handles API key encryption separately from other fields.
+        """
+        # Extract API credentials from validated data
+        api_key = validated_data.pop("api_key", None)
+        api_secret = validated_data.pop("api_secret", None)
+
+        # Update regular fields
+        for attr, value in validated_data.items():
+            setattr(instance, attr, value)
+        instance.save()
+
+        # Handle API credentials separately
+        if api_key and api_secret:
+            try:
+                instance.set_api_credentials(api_key, api_secret)
+            except APIKeyValidationError as e:
+                raise serializers.ValidationError({"api_key": str(e)})
+
+        return instance
+
+
+class UserProfileAPIKeySerializer(serializers.Serializer):
+    """
+    Serializer for API key management operations.
+
+    Used for setting or clearing API credentials.
+
+    Requirements:
+    - 2.4: Never expose decrypted API keys through any API endpoint
+    - 2.5: Securely overwrite previous encrypted values on update
+    - 2.6: Securely remove encrypted data on deletion
+    """
+
+    api_key = serializers.CharField(
+        required=True,
+        min_length=16,
+        max_length=64,
+        help_text="Pionex API key (16-64 alphanumeric characters)",
+    )
+    api_secret = serializers.CharField(
+        required=True,
+        min_length=16,
+        max_length=64,
+        help_text="Pionex API secret (16-64 alphanumeric characters)",
+    )
+
+    def validate_api_key(self, value):
+        """Validate API key format."""
+        from lib.crypto.api_key_manager import APIKeyManager
+
+        manager = APIKeyManager(master_key="validation-only")
+        if not manager.validate_api_key_format(value):
+            raise serializers.ValidationError(
+                "Invalid API key format. Must be 16-128 alphanumeric characters."
+            )
+        return value
+
+    def validate_api_secret(self, value):
+        """Validate API secret format."""
+        from lib.crypto.api_key_manager import APIKeyManager
+
+        manager = APIKeyManager(master_key="validation-only")
+        if not manager.validate_api_key_format(value):
+            raise serializers.ValidationError(
+                "Invalid API secret format. Must be 16-128 alphanumeric characters."
+            )
+        return value

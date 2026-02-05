@@ -1,17 +1,33 @@
 """
-Core views including health check endpoint and settings management.
+Core views including health check endpoint, settings management,
+user registration, and profile management.
+
+Requirements:
+- 1.1: Create UserProfile with default settings on user registration
+- 1.2: Persist user preference changes
+- 1.3: Store user preferences (trading mode, notifications, risk tolerance)
+- 1.4: Display all non-sensitive settings without exposing encrypted data
+- 2.5: Securely overwrite previous encrypted values on update
+- 2.6: Securely remove encrypted data on deletion
+- 9.2: Generate a unique token associated with the user's account
+- 9.6: Invalidate the previous token when regenerating
 """
 
 import json
 import os
 
 from django.contrib import messages
+from django.contrib.auth import login
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.db import connection
 from django.http import JsonResponse
 from django.shortcuts import redirect
-from django.views.generic import TemplateView, View
+from django.urls import reverse_lazy
+from django.views.generic import CreateView, FormView, TemplateView, UpdateView, View
+from rest_framework.authtoken.models import Token
 
-from .models import SystemConfig
+from .forms import APIKeyForm, UserProfileForm, UserRegistrationForm
+from .models import SystemConfig, UserProfile
 
 
 def health_check(request):
@@ -244,3 +260,228 @@ class TradingModeToggleView(View):
         messages.success(request, f"Trading mode changed to {mode_name}.")
 
         return redirect("core:settings")
+
+
+
+class UserRegistrationView(CreateView):
+    """
+    View for user registration.
+
+    Creates a new user account and automatically creates a UserProfile
+    with default settings via the post_save signal.
+
+    Requirements:
+    - 1.1: Create UserProfile with default settings on user registration
+    """
+
+    form_class = UserRegistrationForm
+    template_name = "registration/register.html"
+    success_url = reverse_lazy("dashboard:home")
+
+    def dispatch(self, request, *args, **kwargs):
+        """Redirect authenticated users to dashboard."""
+        if request.user.is_authenticated:
+            return redirect("dashboard:home")
+        return super().dispatch(request, *args, **kwargs)
+
+    def form_valid(self, form):
+        """
+        Save the user and log them in.
+
+        The UserProfile is automatically created via the post_save signal.
+        """
+        user = form.save()
+        login(self.request, user)
+        messages.success(
+            self.request,
+            f"Welcome to Crypt Master, {user.username}! Your account has been created.",
+        )
+        return redirect(self.success_url)
+
+
+class ProfileView(LoginRequiredMixin, TemplateView):
+    """
+    View for displaying user profile.
+
+    Shows user settings and API key status without exposing encrypted data.
+
+    Requirements:
+    - 1.4: Display all non-sensitive settings without exposing encrypted data
+    """
+
+    template_name = "core/profile.html"
+
+    def get_context_data(self, **kwargs):
+        """Add profile data to context."""
+        context = super().get_context_data(**kwargs)
+        profile = self.request.user.profile
+
+        context["profile"] = profile
+        context["has_api_keys"] = profile.has_api_keys()
+
+        # Get API token if it exists
+        try:
+            token = Token.objects.get(user=self.request.user)
+            # Mask the token for display (show first 8 and last 4 chars)
+            if len(token.key) > 12:
+                context["api_token_masked"] = f"{token.key[:8]}...{token.key[-4:]}"
+            else:
+                context["api_token_masked"] = "****"
+            context["has_api_token"] = True
+        except Token.DoesNotExist:
+            context["has_api_token"] = False
+            context["api_token_masked"] = None
+
+        return context
+
+
+class ProfileEditView(LoginRequiredMixin, UpdateView):
+    """
+    View for editing user profile settings.
+
+    Allows users to update their preferences (trading mode, risk tolerance, etc.)
+
+    Requirements:
+    - 1.2: Persist user preference changes
+    - 1.3: Store user preferences (trading mode, notifications, risk tolerance)
+    """
+
+    model = UserProfile
+    form_class = UserProfileForm
+    template_name = "core/profile_edit.html"
+    success_url = reverse_lazy("core:profile")
+
+    def get_object(self, queryset=None):
+        """Return the current user's profile."""
+        return self.request.user.profile
+
+    def form_valid(self, form):
+        """Save the profile and show success message."""
+        form.save()
+        messages.success(self.request, "Profile settings updated successfully.")
+        return redirect(self.success_url)
+
+
+class APIKeyManagementView(LoginRequiredMixin, FormView):
+    """
+    View for managing Pionex API credentials.
+
+    Allows users to set or update their API keys.
+
+    Requirements:
+    - 2.5: Securely overwrite previous encrypted values on update
+    """
+
+    form_class = APIKeyForm
+    template_name = "core/api_key_management.html"
+    success_url = reverse_lazy("core:profile")
+
+    def get_context_data(self, **kwargs):
+        """Add API key status to context."""
+        context = super().get_context_data(**kwargs)
+        context["has_api_keys"] = self.request.user.profile.has_api_keys()
+        return context
+
+    def form_valid(self, form):
+        """Save API credentials to the user's profile."""
+        try:
+            form.save(self.request.user.profile)
+            messages.success(self.request, "API credentials saved successfully.")
+        except Exception as e:
+            messages.error(self.request, f"Failed to save API credentials: {e}")
+            return self.form_invalid(form)
+        return redirect(self.success_url)
+
+
+class APIKeyClearView(LoginRequiredMixin, View):
+    """
+    View for clearing API credentials.
+
+    Requirements:
+    - 2.6: Securely remove encrypted data on deletion
+    """
+
+    def post(self, request):
+        """Clear the user's API credentials."""
+        profile = request.user.profile
+
+        if not profile.has_api_keys():
+            messages.info(request, "No API credentials to clear.")
+        else:
+            profile.clear_api_credentials()
+            messages.success(request, "API credentials cleared successfully.")
+
+        return redirect("core:profile")
+
+
+class APITokenView(LoginRequiredMixin, TemplateView):
+    """
+    View for managing API tokens.
+
+    Displays the user's API token and allows regeneration.
+
+    Requirements:
+    - 9.2: Generate a unique token associated with the user's account
+    - 9.6: Invalidate the previous token when regenerating
+    """
+
+    template_name = "core/api_token.html"
+
+    def get_context_data(self, **kwargs):
+        """Add token data to context."""
+        context = super().get_context_data(**kwargs)
+
+        try:
+            token = Token.objects.get(user=self.request.user)
+            context["token"] = token.key
+            context["has_token"] = True
+        except Token.DoesNotExist:
+            context["token"] = None
+            context["has_token"] = False
+
+        return context
+
+
+class APITokenGenerateView(LoginRequiredMixin, View):
+    """
+    View for generating a new API token.
+
+    Requirements:
+    - 9.2: Generate a unique token associated with the user's account
+    """
+
+    def post(self, request):
+        """Generate a new API token for the user."""
+        token, created = Token.objects.get_or_create(user=request.user)
+
+        if created:
+            messages.success(request, "API token generated successfully.")
+        else:
+            messages.info(request, "You already have an API token.")
+
+        return redirect("core:api_token")
+
+
+class APITokenRegenerateView(LoginRequiredMixin, View):
+    """
+    View for regenerating the API token.
+
+    Invalidates the existing token and creates a new one.
+
+    Requirements:
+    - 9.6: Invalidate the previous token when regenerating
+    """
+
+    def post(self, request):
+        """Regenerate the user's API token."""
+        # Delete existing token
+        Token.objects.filter(user=request.user).delete()
+
+        # Create new token
+        Token.objects.create(user=request.user)
+
+        messages.success(
+            request,
+            "API token regenerated successfully. Previous token has been invalidated.",
+        )
+        return redirect("core:api_token")

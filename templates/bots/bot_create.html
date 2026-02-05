@@ -3,91 +3,134 @@
 {% block title %}Create Bot - Crypt Master{% endblock %}
 
 {% block content %}
-<div class="container">
-    <div class="page-header">
-        <h1>Create New Bot</h1>
-        <a href="{% url 'bots:bot_list' %}" class="btn btn-secondary">Cancel</a>
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Page Header -->
+    <div class="mb-8 flex flex-wrap items-center justify-between gap-4">
+        <h1 class="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">Create New Bot</h1>
+        <a href="{% url 'bots:bot_list' %}" class="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-slate-900">Cancel</a>
     </div>
     
-    <div class="row">
-        <div class="col form-container">
-            <form method="post">
-                {% csrf_token %}
-                
-                <div class="form-group">
-                    <label for="bot_type">Bot Type</label>
-                    <select name="bot_type" id="bot_type" required>
-                        <option value="">Select bot type...</option>
-                        {% for value, label in bot_types %}
-                        <option value="{{ value }}">{{ label }}</option>
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <!-- Create Form -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                <h2 class="text-lg font-semibold text-slate-100">Bot Configuration</h2>
+            </div>
+            <div class="px-4 py-5 sm:px-6">
+                <form method="post" class="space-y-5">
+                    {% csrf_token %}
+                    
+                    <div>
+                        <label for="bot_type" class="flex items-center gap-1 text-sm font-medium text-slate-300">
+                            Bot Type
+                            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                                <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Grid: Best for sideways markets. DCA: Best for accumulation. Infinity Grid: Grid without upper limit.</span>
+                            </span>
+                        </label>
+                        <select name="bot_type" id="bot_type" required class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                            <option value="">Select bot type...</option>
+                            {% for value, label in bot_types %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="trading_pair" class="block text-sm font-medium text-slate-300">Trading Pair</label>
+                        <select name="trading_pair" id="trading_pair" required class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                            <option value="">Select trading pair...</option>
+                            {% for pair in trading_pairs %}
+                            <option value="{{ pair.pk }}">{{ pair.symbol }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label for="invested_amount" class="flex items-center gap-1 text-sm font-medium text-slate-300">
+                            Investment Amount (USDT)
+                            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                                <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">The amount of USDT to allocate to this bot. Start small (e.g., $100) when testing new strategies.</span>
+                            </span>
+                        </label>
+                        <input type="number" name="invested_amount" id="invested_amount" step="0.01" min="0" required placeholder="100.00" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                    </div>
+                    
+                    <div>
+                        <label for="is_simulated" class="flex items-center gap-1 text-sm font-medium text-slate-300">
+                            Mode
+                            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                                <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Simulated: No real trades, safe for testing. Live: Real trades on Pionex. Always test in Simulated first!</span>
+                            </span>
+                        </label>
+                        <select name="is_simulated" id="is_simulated" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                            <option value="True" selected>Simulated (Dry Run)</option>
+                            <option value="False">Live Trading</option>
+                        </select>
+                        <p class="mt-1.5 text-xs text-slate-500">Simulated mode does not place real orders.</p>
+                    </div>
+                    
+                    <div>
+                        <label for="params" class="flex items-center gap-1 text-sm font-medium text-slate-300">
+                            Parameters (JSON)
+                            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                                <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Bot-specific settings. See examples on the right for each bot type. Must be valid JSON format.</span>
+                            </span>
+                        </label>
+                        <textarea name="params" id="params" rows="6" placeholder='{"lower_price": 40000, "upper_price": 50000, "grid_count": 10}' class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 font-mono text-sm text-slate-100 placeholder-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"></textarea>
+                        <p class="mt-1.5 text-xs text-slate-500">Bot-specific parameters in JSON format.</p>
+                    </div>
+                    
+                    {% if form.errors %}
+                    <div class="rounded-lg border border-red-500/50 bg-red-900/20 p-4">
+                        {% for field, errors in form.errors.items %}
+                        <p class="text-sm text-red-400"><span class="font-medium">{{ field }}:</span> {{ errors|join:", " }}</p>
                         {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="trading_pair">Trading Pair</label>
-                    <select name="trading_pair" id="trading_pair" required>
-                        <option value="">Select trading pair...</option>
-                        {% for pair in trading_pairs %}
-                        <option value="{{ pair.pk }}">{{ pair.symbol }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="invested_amount">Investment Amount (USDT)</label>
-                    <input type="number" name="invested_amount" id="invested_amount" step="0.01" min="0" required placeholder="100.00">
-                </div>
-                
-                <div class="form-group">
-                    <label for="is_simulated">Mode</label>
-                    <select name="is_simulated" id="is_simulated">
-                        <option value="True" selected>Simulated (Dry Run)</option>
-                        <option value="False">Live Trading</option>
-                    </select>
-                    <small class="form-help">Simulated mode does not place real orders.</small>
-                </div>
-                
-                <div class="form-group">
-                    <label for="params">Parameters (JSON)</label>
-                    <textarea name="params" id="params" rows="6" placeholder='{"lower_price": 40000, "upper_price": 50000, "grid_count": 10}'></textarea>
-                    <small class="form-help">Bot-specific parameters in JSON format.</small>
-                </div>
-                
-                {% if form.errors %}
-                <div class="alert alert-danger">
-                    {% for field, errors in form.errors.items %}
-                    <p><strong>{{ field }}:</strong> {{ errors|join:", " }}</p>
-                    {% endfor %}
-                </div>
-                {% endif %}
-                
-                <div class="form-actions">
-                    <button type="submit" class="btn btn-primary">Create Bot</button>
-                    <a href="{% url 'bots:bot_list' %}" class="btn btn-secondary">Cancel</a>
-                </div>
-            </form>
+                    </div>
+                    {% endif %}
+                    
+                    <div class="flex items-center gap-3 pt-2">
+                        <button type="submit" class="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">Create Bot</button>
+                        <a href="{% url 'bots:bot_list' %}" class="rounded-lg border border-slate-600 bg-slate-700 px-4 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-slate-500 focus:ring-offset-2 focus:ring-offset-slate-800">Cancel</a>
+                    </div>
+                </form>
+            </div>
         </div>
         
-        <div class="col">
-            <h2>Bot Types</h2>
-            <div class="info-cards">
-                <div class="info-card">
-                    <h3>Grid Bot</h3>
-                    <p>Places buy and sell orders at regular price intervals within a defined range. Best for sideways markets.</p>
-                    <code>{"lower_price": 40000, "upper_price": 50000, "grid_count": 10}</code>
+        <!-- Bot Types Info -->
+        <div class="space-y-4">
+            <h2 class="text-lg font-semibold text-slate-100">Bot Types</h2>
+            
+            <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+                <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                    <h3 class="font-medium text-indigo-400">Grid Bot</h3>
                 </div>
-                
-                <div class="info-card">
-                    <h3>DCA Bot</h3>
-                    <p>Dollar-cost averaging bot that buys at regular intervals regardless of price. Good for accumulation.</p>
-                    <code>{"investment_per_order": 100, "interval_hours": 24}</code>
+                <div class="px-4 py-4 sm:px-6">
+                    <p class="text-sm text-slate-300">Places buy and sell orders at regular price intervals within a defined range. Best for sideways markets.</p>
+                    <code class="mt-3 block rounded-lg bg-slate-700/50 p-3 text-xs text-slate-300">{"lower_price": 40000, "upper_price": 50000, "grid_count": 10}</code>
                 </div>
-                
-                <div class="info-card">
-                    <h3>Infinity Grid</h3>
-                    <p>Grid bot without upper price limit. Continues buying as price rises.</p>
-                    <code>{"lower_price": 40000, "grid_count": 20}</code>
+            </div>
+            
+            <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+                <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                    <h3 class="font-medium text-purple-400">DCA Bot</h3>
+                </div>
+                <div class="px-4 py-4 sm:px-6">
+                    <p class="text-sm text-slate-300">Dollar-cost averaging bot that buys at regular intervals regardless of price. Good for accumulation.</p>
+                    <code class="mt-3 block rounded-lg bg-slate-700/50 p-3 text-xs text-slate-300">{"investment_per_order": 100, "interval_hours": 24}</code>
+                </div>
+            </div>
+            
+            <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+                <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+                    <h3 class="font-medium text-sky-400">Infinity Grid</h3>
+                </div>
+                <div class="px-4 py-4 sm:px-6">
+                    <p class="text-sm text-slate-300">Grid bot without upper price limit. Continues buying as price rises.</p>
+                    <code class="mt-3 block rounded-lg bg-slate-700/50 p-3 text-xs text-slate-300">{"lower_price": 40000, "grid_count": 20}</code>
                 </div>
             </div>
         </div>

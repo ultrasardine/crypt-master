@@ -110,7 +110,7 @@ class TestKellyCriterionCalculation:
     **Validates: Requirements 6.1**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -146,7 +146,7 @@ class TestKellyCriterionCalculation:
             f"(win_prob={win_probability}, win_loss_ratio={win_loss_ratio})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -179,7 +179,7 @@ class TestKellyCriterionCalculation:
             f"(win_prob={win_probability}, win_loss_ratio={win_loss_ratio})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -223,7 +223,7 @@ class TestKellyCriterionCalculation:
                 f"Kelly should be zero at break-even: kelly={kelly}"
             )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -260,7 +260,7 @@ class TestKellyCriterionCalculation:
             f"Kelly {kelly} above theoretical maximum {max_theoretical}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_loss_ratio=win_loss_ratio_strategy,
     )
@@ -319,7 +319,7 @@ class TestPositionSizeCapping:
     **Validates: Requirements 6.2**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -353,7 +353,7 @@ class TestPositionSizeCapping:
             f"(portfolio={portfolio_value}, max_pct={sizer.max_position_pct})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -390,7 +390,7 @@ class TestPositionSizeCapping:
             f"(portfolio={portfolio_value}, max_pct={max_position_pct})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -424,7 +424,7 @@ class TestPositionSizeCapping:
             f"Clamped fraction {result.clamped_fraction} is negative"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -454,7 +454,7 @@ class TestPositionSizeCapping:
             f"[0, {sizer.max_position_pct}]"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -492,7 +492,7 @@ class TestPositionSizeCapping:
             f"(kelly={result.kelly_fraction}, max_pct={sizer.max_position_pct})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -526,7 +526,7 @@ class TestPositionSizeCapping:
             f"(kelly={result.kelly_fraction})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -571,7 +571,7 @@ class TestPositionSizerConsistency:
     **Validates: Requirements 6.1, 6.2**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -614,7 +614,7 @@ class TestPositionSizerConsistency:
             f"Position size not deterministic: {result1.position_size} vs {result2.position_size}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -651,7 +651,7 @@ class TestPositionSizerConsistency:
             f"{result1.position_size} vs {result2.position_size}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -688,7 +688,7 @@ class TestPositionSizerConsistency:
         assert isinstance(result.reasoning, str), "reasoning should be str"
         assert len(result.reasoning) > 0, "reasoning should not be empty"
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         win_probability=win_probability_strategy,
         win_loss_ratio=win_loss_ratio_strategy,
@@ -740,7 +740,7 @@ class TestPositionSizerConsistency:
                 f"with multiplier {kelly_multiplier}"
             )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
     )

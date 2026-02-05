@@ -1,30 +1,114 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Crypt Master{% endblock %}</title>
     {% load static %}
-    <link rel="stylesheet" href="{% static 'css/style.css' %}">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#eef2ff',
+                            100: '#e0e7ff',
+                            200: '#c7d2fe',
+                            300: '#a5b4fc',
+                            400: '#818cf8',
+                            500: '#6366f1',
+                            600: '#4f46e5',
+                            700: '#4338ca',
+                            800: '#3730a3',
+                            900: '#312e81',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
 </head>
-<body>
-    <nav>
-        <ul>
-            <li><a href="{% url 'dashboard:home' %}">Dashboard</a></li>
-            <li><a href="{% url 'trading:signal_list' %}">Signals</a></li>
-            <li><a href="{% url 'trading:trade_list' %}">Trades</a></li>
-            <li><a href="{% url 'bots:bot_list' %}">Bots</a></li>
-            <li><a href="{% url 'analysis:analysis' %}">Analysis</a></li>
-            <li><a href="{% url 'analysis:backtest' %}">Backtest</a></li>
-            <li><a href="{% url 'core:settings' %}">Settings</a></li>
-        </ul>
+<body class="h-full bg-slate-900 text-slate-100">
+    <!-- Navigation -->
+    <nav class="border-b border-slate-700 bg-slate-800">
+        <div class="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+            <div class="flex h-16 items-center justify-between">
+                <div class="flex items-center">
+                    <a href="{% url 'dashboard:home' %}" class="text-xl font-bold text-indigo-400">Crypt Master</a>
+                </div>
+                <div class="hidden md:block">
+                    <div class="flex items-center space-x-4">
+                        <a href="{% url 'dashboard:home' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Dashboard</a>
+                        <a href="{% url 'trading:signal_list' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Signals</a>
+                        <a href="{% url 'trading:trade_list' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Trades</a>
+                        <a href="{% url 'bots:bot_list' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Bots</a>
+                        <a href="{% url 'analysis:analysis' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Analysis</a>
+                        <a href="{% url 'core:settings' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Settings</a>
+                        {% if user.is_authenticated %}
+                        <a href="{% url 'core:profile' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Profile</a>
+                        <a href="{% url 'logout' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Logout</a>
+                        {% else %}
+                        <a href="{% url 'login' %}" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">Login</a>
+                        {% endif %}
+                    </div>
+                </div>
+                <!-- Mobile menu button -->
+                <div class="md:hidden">
+                    <button type="button" onclick="toggleMobileMenu()" class="inline-flex items-center justify-center rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-700 hover:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500" aria-expanded="false" aria-label="Toggle navigation menu">
+                        <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+        <!-- Mobile menu -->
+        <div id="mobile-menu" class="hidden md:hidden">
+            <div class="space-y-1 px-2 pb-3 pt-2">
+                <a href="{% url 'dashboard:home' %}" class="block rounded-lg px-3 py-2 text-base font-medium text-slate-300 hover:bg-slate-700 hover:text-white">Dashboard</a>
+                <a href="{% url 'trading:signal_list' %}" class="block rounded-lg px-3 py-2 text-base font-medium text-slate-300 hover:bg-slate-700 hover:text-white">Signals</a>
+                <a href="{% url 'trading:trade_list' %}" class="block rounded-lg px-3 py-2 text-base font-medium text-slate-300 hover:bg-slate-700 hover:text-white">Trades</a>
+                <a href="{% url 'bots:bot_list' %}" class="block rounded-lg px-3 py-2 text-base font-medium text-slate-300 hover:bg-slate-700 hover:text-white">Bots</a>
+                <a href="{% url 'analysis:analysis' %}" class="block rounded-lg px-3 py-2 text-base font-medium text-slate-300 hover:bg-slate-700 hover:text-white">Analysis</a>
+                <a href="{% url 'core:settings' %}" class="block rounded-lg px-3 py-2 text-base font-medium text-slate-300 hover:bg-slate-700 hover:text-white">Settings</a>
+                {% if user.is_authenticated %}
+                <a href="{% url 'core:profile' %}" class="block rounded-lg px-3 py-2 text-base font-medium text-slate-300 hover:bg-slate-700 hover:text-white">Profile</a>
+                <a href="{% url 'logout' %}" class="block rounded-lg px-3 py-2 text-base font-medium text-slate-300 hover:bg-slate-700 hover:text-white">Logout</a>
+                {% else %}
+                <a href="{% url 'login' %}" class="block rounded-lg px-3 py-2 text-base font-medium text-slate-300 hover:bg-slate-700 hover:text-white">Login</a>
+                {% endif %}
+            </div>
+        </div>
     </nav>
     
-    <main>
+    <main class="min-h-screen">
+        <!-- Flash Messages -->
         {% if messages %}
-        <div class="messages">
+        <div class="mx-auto max-w-7xl px-4 pt-4 sm:px-6 lg:px-8">
             {% for message in messages %}
-            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            <div class="mb-4 rounded-lg border p-4 {% if message.tags == 'success' %}border-emerald-200 bg-emerald-900/20 text-emerald-400{% elif message.tags == 'error' or message.tags == 'danger' %}border-red-200 bg-red-900/20 text-red-400{% elif message.tags == 'warning' %}border-amber-200 bg-amber-900/20 text-amber-400{% else %}border-sky-200 bg-sky-900/20 text-sky-400{% endif %}">
+                <div class="flex">
+                    <div class="flex-shrink-0">
+                        {% if message.tags == 'success' %}
+                        <svg class="h-5 w-5 text-emerald-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" />
+                        </svg>
+                        {% elif message.tags == 'error' or message.tags == 'danger' %}
+                        <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+                        </svg>
+                        {% else %}
+                        <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clip-rule="evenodd" />
+                        </svg>
+                        {% endif %}
+                    </div>
+                    <div class="ml-3">
+                        <p class="text-sm font-medium">{{ message }}</p>
+                    </div>
+                </div>
+            </div>
             {% endfor %}
         </div>
         {% endif %}
@@ -32,309 +116,18 @@
         {% block content %}{% endblock %}
     </main>
     
-    <footer>
-        <p>&copy; 2024 Crypt Master - Automated Trading System</p>
+    <!-- Footer -->
+    <footer class="border-t border-slate-700 bg-slate-800">
+        <div class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
+            <p class="text-center text-sm text-slate-500">&copy; 2024 Crypt Master - Automated Trading System</p>
+        </div>
     </footer>
     
-    <!-- WebSocket Connection Script -->
+
     <script>
-        // WebSocket connection manager
-        class WebSocketManager {
-            constructor(url, options = {}) {
-                this.url = url;
-                this.reconnectInterval = options.reconnectInterval || 5000;
-                this.maxReconnectAttempts = options.maxReconnectAttempts || 10;
-                this.reconnectAttempts = 0;
-                this.handlers = {};
-                this.ws = null;
-                this.pingInterval = null;
-            }
-            
-            connect() {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}${this.url}`;
-                
-                this.ws = new WebSocket(wsUrl);
-                
-                this.ws.onopen = () => {
-                    console.log(`WebSocket connected: ${this.url}`);
-                    this.reconnectAttempts = 0;
-                    this.startPing();
-                    this.trigger('connected');
-                };
-                
-                this.ws.onclose = (event) => {
-                    console.log(`WebSocket closed: ${this.url}`, event.code);
-                    this.stopPing();
-                    this.trigger('disconnected');
-                    this.scheduleReconnect();
-                };
-                
-                this.ws.onerror = (error) => {
-                    console.error(`WebSocket error: ${this.url}`, error);
-                    this.trigger('error', error);
-                };
-                
-                this.ws.onmessage = (event) => {
-                    try {
-                        const data = JSON.parse(event.data);
-                        this.trigger(data.type, data);
-                    } catch (e) {
-                        console.error('Failed to parse WebSocket message:', e);
-                    }
-                };
-            }
-            
-            startPing() {
-                this.pingInterval = setInterval(() => {
-                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                        this.ws.send(JSON.stringify({ type: 'ping' }));
-                    }
-                }, 30000);
-            }
-            
-            stopPing() {
-                if (this.pingInterval) {
-                    clearInterval(this.pingInterval);
-                    this.pingInterval = null;
-                }
-            }
-            
-            scheduleReconnect() {
-                if (this.reconnectAttempts < this.maxReconnectAttempts) {
-                    this.reconnectAttempts++;
-                    console.log(`Reconnecting in ${this.reconnectInterval}ms (attempt ${this.reconnectAttempts})`);
-                    setTimeout(() => this.connect(), this.reconnectInterval);
-                } else {
-                    console.error('Max reconnect attempts reached');
-                    this.trigger('maxReconnectReached');
-                }
-            }
-            
-            on(event, handler) {
-                if (!this.handlers[event]) {
-                    this.handlers[event] = [];
-                }
-                this.handlers[event].push(handler);
-            }
-            
-            off(event, handler) {
-                if (this.handlers[event]) {
-                    this.handlers[event] = this.handlers[event].filter(h => h !== handler);
-                }
-            }
-            
-            trigger(event, data) {
-                if (this.handlers[event]) {
-                    this.handlers[event].forEach(handler => handler(data));
-                }
-            }
-            
-            send(data) {
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    this.ws.send(JSON.stringify(data));
-                }
-            }
-            
-            subscribe(symbol) {
-                this.send({ type: 'subscribe', symbol: symbol });
-            }
-            
-            unsubscribe(symbol) {
-                this.send({ type: 'unsubscribe', symbol: symbol });
-            }
-            
-            close() {
-                this.stopPing();
-                if (this.ws) {
-                    this.ws.close();
-                }
-            }
-        }
-        
-        // Global WebSocket instances
-        window.dashboardWS = null;
-        window.analysisWS = null;
-        
-        // Initialize WebSocket connections based on current page
-        document.addEventListener('DOMContentLoaded', function() {
-            // Dashboard WebSocket (always connect on dashboard pages)
-            if (document.querySelector('.portfolio-card') || document.querySelector('.bots-card')) {
-                window.dashboardWS = new WebSocketManager('/ws/dashboard/');
-                window.dashboardWS.connect();
-                
-                // Handle portfolio updates
-                window.dashboardWS.on('portfolio_update', function(data) {
-                    updatePortfolioDisplay(data);
-                });
-                
-                // Handle signal updates
-                window.dashboardWS.on('signal_update', function(data) {
-                    updateSignalDisplay(data);
-                });
-                
-                // Handle bot updates
-                window.dashboardWS.on('bot_update', function(data) {
-                    updateBotDisplay(data);
-                });
-                
-                window.dashboardWS.on('bot_created', function(data) {
-                    showNotification('Bot Created', `${data.bot_type} bot created for ${data.symbol}`, 'success');
-                    refreshBotList();
-                });
-                
-                window.dashboardWS.on('bot_stopped', function(data) {
-                    showNotification('Bot Stopped', `Bot for ${data.symbol} stopped: ${data.reason}`, 'warning');
-                    refreshBotList();
-                });
-                
-                window.dashboardWS.on('bot_performance', function(data) {
-                    updateBotPerformance(data);
-                });
-                
-                // Handle alerts
-                window.dashboardWS.on('alert', function(data) {
-                    showNotification(data.title, data.message, data.level);
-                });
-            }
-            
-            // Analysis WebSocket (connect on analysis pages)
-            if (document.querySelector('.indicator-grid')) {
-                window.analysisWS = new WebSocketManager('/ws/analysis/');
-                window.analysisWS.connect();
-                
-                // Handle indicator updates
-                window.analysisWS.on('indicator_update', function(data) {
-                    updateIndicatorDisplay(data);
-                });
-                
-                // Handle sentiment updates
-                window.analysisWS.on('sentiment_update', function(data) {
-                    updateSentimentDisplay(data);
-                });
-                
-                // Handle signal updates on analysis page
-                window.analysisWS.on('signal_update', function(data) {
-                    updateAnalysisSignalDisplay(data);
-                });
-            }
-        });
-        
-        // Helper functions for updating UI
-        function updatePortfolioDisplay(data) {
-            const totalValue = document.querySelector('.stat-item:nth-child(1) .stat-value');
-            if (totalValue) totalValue.textContent = '$' + parseFloat(data.total_value).toFixed(2);
-            
-            const available = document.querySelector('.stat-item:nth-child(2) .stat-value');
-            if (available) available.textContent = '$' + parseFloat(data.available_balance).toFixed(2);
-            
-            const allocated = document.querySelector('.stat-item:nth-child(3) .stat-value');
-            if (allocated) allocated.textContent = '$' + parseFloat(data.allocated_to_bots).toFixed(2);
-            
-            const drawdown = document.querySelector('.stat-item:nth-child(4) .stat-value');
-            if (drawdown) {
-                drawdown.textContent = parseFloat(data.drawdown).toFixed(2) + '%';
-                drawdown.className = 'stat-value ' + (data.drawdown > 10 ? 'text-danger' : data.drawdown > 5 ? 'text-warning' : 'text-success');
-            }
-        }
-        
-        function updateSignalDisplay(data) {
-            // Flash the signals section to indicate update
-            const signalsCard = document.querySelector('.signals-card');
-            if (signalsCard) {
-                signalsCard.classList.add('updated');
-                setTimeout(() => signalsCard.classList.remove('updated'), 1000);
-            }
-        }
-        
-        function updateBotDisplay(data) {
-            // Update bot row if visible
-            const botRow = document.querySelector(`tr[data-bot-id="${data.bot_id}"]`);
-            if (botRow) {
-                const pnlCell = botRow.querySelector('.pnl-cell');
-                if (pnlCell) {
-                    pnlCell.textContent = '$' + parseFloat(data.pnl).toFixed(2);
-                    pnlCell.className = 'pnl-cell ' + (parseFloat(data.pnl) >= 0 ? 'text-success' : 'text-danger');
-                }
-            }
-        }
-        
-        function updateBotPerformance(data) {
-            updateBotDisplay(data);
-            if (data.is_underperforming) {
-                showNotification('Bot Underperforming', `Bot for ${data.symbol} is underperforming (${data.pnl_percent.toFixed(2)}%)`, 'warning');
-            }
-        }
-        
-        function updateIndicatorDisplay(data) {
-            // Update indicator cards
-            Object.entries(data.indicators).forEach(([name, value]) => {
-                const card = document.querySelector(`.indicator-card[data-indicator="${name}"]`);
-                if (card) {
-                    const valueEl = card.querySelector('.indicator-value');
-                    if (valueEl && value !== null) {
-                        valueEl.textContent = typeof value === 'number' ? value.toFixed(2) : value;
-                    }
-                }
-            });
-        }
-        
-        function updateSentimentDisplay(data) {
-            const fgiCard = document.querySelector('.indicator-card[data-indicator="FGI"]');
-            if (fgiCard) {
-                const valueEl = fgiCard.querySelector('.indicator-value');
-                if (valueEl) valueEl.textContent = data.fear_greed_index;
-                
-                const labelEl = fgiCard.querySelector('.indicator-label');
-                if (labelEl) labelEl.textContent = data.classification;
-            }
-        }
-        
-        function updateAnalysisSignalDisplay(data) {
-            const signalCard = document.querySelector('.signal-card');
-            if (signalCard) {
-                const directionEl = signalCard.querySelector('.direction');
-                if (directionEl) {
-                    directionEl.textContent = data.direction;
-                    directionEl.className = 'direction direction-' + data.direction.toLowerCase();
-                }
-                
-                const confidenceEl = signalCard.querySelector('.confidence');
-                if (confidenceEl) {
-                    confidenceEl.textContent = data.confidence.toFixed(1) + '%';
-                }
-            }
-        }
-        
-        function refreshBotList() {
-            // Reload the page to refresh bot list (simple approach)
-            // In production, you'd fetch and update the DOM
-            if (document.querySelector('.bots-card')) {
-                setTimeout(() => location.reload(), 2000);
-            }
-        }
-        
-        function showNotification(title, message, level) {
-            // Create notification element
-            const notification = document.createElement('div');
-            notification.className = `notification notification-${level}`;
-            notification.innerHTML = `
-                <strong>${title}</strong>
-                <p>${message}</p>
-                <button class="close-btn" onclick="this.parentElement.remove()">&times;</button>
-            `;
-            
-            // Add to page
-            let container = document.querySelector('.notifications-container');
-            if (!container) {
-                container = document.createElement('div');
-                container.className = 'notifications-container';
-                document.body.appendChild(container);
-            }
-            container.appendChild(notification);
-            
-            // Auto-remove after 5 seconds
-            setTimeout(() => notification.remove(), 5000);
+        function toggleMobileMenu() {
+            const menu = document.getElementById('mobile-menu');
+            menu.classList.toggle('hidden');
         }
     </script>
     

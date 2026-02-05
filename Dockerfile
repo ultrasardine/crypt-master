@@ -54,8 +54,7 @@ COPY pyproject.toml uv.lock README.md ./
 
 # Install Python dependencies using uv
 # Using --frozen to ensure reproducible builds from lockfile
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev --no-install-project
+RUN uv sync --frozen --no-dev --no-install-project
 
 # Copy application source code
 COPY config/ ./config/
@@ -67,8 +66,7 @@ COPY static/ ./static/
 COPY manage.py ./
 
 # Install the project itself
-RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev
 
 # -----------------------------------------------------------------------------
 # Stage 2: Runtime - Minimal production image

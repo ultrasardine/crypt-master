@@ -51,3 +51,4 @@ celerybeat.pid
 
 .hypothesis
 .kiro
+.ruff_cache
