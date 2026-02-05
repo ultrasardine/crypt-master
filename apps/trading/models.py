@@ -70,6 +70,14 @@ class SignalQuerySet(QuerySet):
         result = self.aggregate(avg=Avg("confidence"))
         return result["avg"] or 0.0
 
+    def actionable_recent(self, hours: int = 24) -> "SignalQuerySet":
+        """Get recent actionable (BUY/SELL) signals."""
+        return self.recent(hours).actionable()
+
+    def high_confidence_recent(self, hours: int = 24, threshold: float = 85.0) -> "SignalQuerySet":
+        """Get recent high-confidence signals."""
+        return self.recent(hours).high_confidence(threshold)
+
 
 class SignalManager(models.Manager):
     """Custom manager for Signal model."""

@@ -75,7 +75,7 @@ class PionexClient:
     Example:
         >>> async with PionexClient(api_key="key", api_secret="secret") as client:
         ...     symbols = await client.get_symbols()
-        ...     candles = await client.get_candles("BTC_USDT", "1H")
+        ...     candles = await client.get_candles("BTC_USDT", "4H")
 
     Attributes:
         base_url: The Pionex API base URL
@@ -347,6 +347,36 @@ class PionexClient:
 
         return symbols
 
+    # Valid Pionex kline intervals (uppercase required)
+    VALID_INTERVALS = {"1M", "5M", "15M", "30M", "4H", "8H", "12H", "1D"}
+
+    # Mapping for common interval aliases to valid Pionex intervals
+    INTERVAL_MAPPING: dict[str, str] = {
+        # Minute intervals
+        "1m": "1M",
+        "1M": "1M",
+        "5m": "5M",
+        "5M": "5M",
+        "15m": "15M",
+        "15M": "15M",
+        "30m": "30M",
+        "30M": "30M",
+        # Hour intervals (1H and 2H not supported, map to closest)
+        "1h": "30M",  # 1H not supported, use 30M for more granular data
+        "1H": "30M",
+        "2h": "4H",  # 2H not supported, use 4H
+        "2H": "4H",
+        "4h": "4H",
+        "4H": "4H",
+        "8h": "8H",
+        "8H": "8H",
+        "12h": "12H",
+        "12H": "12H",
+        # Day intervals
+        "1d": "1D",
+        "1D": "1D",
+    }
+
     async def get_candles(
         self,
         symbol: str,
@@ -360,7 +390,10 @@ class PionexClient:
 
         Args:
             symbol: Trading pair symbol (e.g., "BTC_USDT")
-            interval: Candle interval (e.g., "1M", "5M", "15M", "30M", "1H", "4H", "1D")
+            interval: Candle interval. Valid Pionex intervals are:
+                     1M, 5M, 15M, 30M (minutes), 4H, 8H, 12H (hours), 1D (day)
+                     Note: 1H and 2H are NOT supported by Pionex API.
+                     Common aliases (1h, 4h, 1d) are automatically mapped.
             limit: Maximum number of candles to return (default: 100, max: 1000)
             start_time: Start time in milliseconds (optional)
             end_time: End time in milliseconds (optional)
@@ -370,10 +403,21 @@ class PionexClient:
 
         Raises:
             PionexAPIError: If the API request fails
+            ValueError: If interval is not valid or cannot be mapped
         """
+        # Map interval to valid Pionex format
+        normalized_interval = self.INTERVAL_MAPPING.get(interval)
+        if normalized_interval is None:
+            if interval in self.VALID_INTERVALS:
+                normalized_interval = interval
+            else:
+                raise ValueError(
+                    f"Invalid interval '{interval}'. Valid intervals: {self.VALID_INTERVALS}"
+                )
+
         params: dict[str, Any] = {
             "symbol": symbol,
-            "interval": interval,
+            "interval": normalized_interval,
             "limit": min(limit, 1000),
         }
 

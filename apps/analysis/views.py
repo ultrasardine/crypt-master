@@ -4,6 +4,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import JsonResponse
 from django.views import View
 from django.views.generic import TemplateView
@@ -14,19 +15,30 @@ from lib.backtesting import Backtester, BacktesterConfig
 from lib.pionex.models import Candle
 
 
-class AnalysisView(TemplateView):
+class AnalysisView(LoginRequiredMixin, TemplateView):
     """View for displaying market analysis with live indicators and signal history."""
 
     template_name = "analysis/analysis.html"
 
     def get_context_data(self, **kwargs):
-        """Add analysis data to context."""
+        """Add analysis data to context. Filtered by user's active pairs."""
         context = super().get_context_data(**kwargs)
 
         # Get selected trading pair or default
         symbol = self.request.GET.get("symbol", "BTC_USDT")
         context["current_symbol"] = symbol
         context["trading_pairs"] = TradingPair.objects.active()
+
+        # Verify user has access to this pair
+        active_pairs = []
+        if hasattr(self.request.user, "profile"):
+            active_pairs = self.request.user.profile.active_trading_pairs or []
+
+        if active_pairs and symbol not in active_pairs:
+            # User doesn't have this pair in their active list
+            context["trading_pair"] = None
+            context["access_denied"] = True
+            return context
 
         # Get the trading pair
         try:
@@ -45,13 +57,32 @@ class AnalysisView(TemplateView):
 
         if latest_signal and latest_signal.indicators:
             # Parse indicator data from the signal
+            # indicators is a list of dicts: [{"name": "RSI", "signal": "BUY", ...}, ...]
             indicators = latest_signal.indicators
             context["indicators"] = indicators
 
-            # Technical indicators
-            context["technical"] = indicators.get("technical", {})
-            context["sentiment"] = indicators.get("sentiment", {})
-            context["volume"] = indicators.get("volume", {})
+            # Group indicators by type for display
+            technical_indicators = {}
+            sentiment_indicators = {}
+            volume_indicators = {}
+
+            for ind in indicators:
+                if isinstance(ind, dict):
+                    name = ind.get("name", "").upper()
+                    # Categorize indicators
+                    if name in ("RSI", "MACD", "BB", "ADX", "STOCH"):
+                        technical_indicators[name.lower()] = ind
+                    elif name in ("FGI", "NEWS"):
+                        sentiment_indicators[name.lower()] = ind
+                    elif name == "VOL":
+                        volume_indicators[name.lower()] = ind
+                    else:
+                        # Default to technical
+                        technical_indicators[name.lower()] = ind
+
+            context["technical"] = technical_indicators
+            context["sentiment"] = sentiment_indicators
+            context["volume"] = volume_indicators
 
         # Signal statistics for this pair
         pair_signals = Signal.objects.for_pair(symbol)
@@ -63,7 +94,7 @@ class AnalysisView(TemplateView):
         return context
 
 
-class IndicatorDetailView(TemplateView):
+class IndicatorDetailView(LoginRequiredMixin, TemplateView):
     """Detailed view for a specific indicator."""
 
     template_name = "analysis/indicator_detail.html"
@@ -85,16 +116,17 @@ class IndicatorDetailView(TemplateView):
 
         for signal in signals:
             if signal.indicators:
-                technical = signal.indicators.get("technical", {})
-                if indicator_name in technical:
-                    indicator_history.append(
-                        {
-                            "timestamp": signal.created_at,
-                            "value": technical[indicator_name],
-                            "signal_direction": signal.direction,
-                            "confidence": signal.confidence,
-                        }
-                    )
+                # indicators is a list of dicts
+                for ind in signal.indicators:
+                    if isinstance(ind, dict) and ind.get("name", "").lower() == indicator_name:
+                        indicator_history.append(
+                            {
+                                "timestamp": signal.created_at,
+                                "value": ind.get("value"),
+                                "signal_direction": signal.direction,
+                                "confidence": signal.confidence,
+                            }
+                        )
 
         context["indicator_history"] = indicator_history
 
@@ -139,7 +171,7 @@ class IndicatorDetailView(TemplateView):
         return context
 
 
-class BacktestView(TemplateView):
+class BacktestView(LoginRequiredMixin, TemplateView):
     """View for running backtests and displaying results."""
 
     template_name = "analysis/backtest.html"
@@ -173,7 +205,7 @@ class BacktestView(TemplateView):
         return context
 
 
-class RunBacktestView(View):
+class RunBacktestView(LoginRequiredMixin, View):
     """API endpoint for running a backtest."""
 
     def post(self, request):

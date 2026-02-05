@@ -43,4 +43,10 @@ urlpatterns = [
         views.APITokenRegenerateView.as_view(),
         name="api_token_regenerate",
     ),
+    # Trading pairs
+    path(
+        "profile/fetch-pionex-symbols/",
+        views.FetchPionexSymbolsView.as_view(),
+        name="fetch_pionex_symbols",
+    ),
 ]

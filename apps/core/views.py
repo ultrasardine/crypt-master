@@ -485,3 +485,62 @@ class APITokenRegenerateView(LoginRequiredMixin, View):
             "API token regenerated successfully. Previous token has been invalidated.",
         )
         return redirect("core:api_token")
+
+
+class FetchPionexSymbolsView(LoginRequiredMixin, View):
+    """
+    API endpoint to fetch available trading symbols from Pionex.
+
+    Returns a JSON list of symbols that can be used for trading pair selection.
+    Uses the public Pionex API (no authentication required).
+    """
+
+    def get(self, request):
+        """Fetch and return available Pionex trading symbols."""
+        import httpx
+
+        try:
+            # Direct call to public endpoint - no auth needed
+            response = httpx.get(
+                "https://api.pionex.com/api/v1/common/symbols",
+                timeout=30.0,
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            if not data.get("result"):
+                return JsonResponse(
+                    {"success": False, "error": data.get("message", "API error")},
+                    status=500,
+                )
+
+            symbols = []
+            for item in data.get("data", {}).get("symbols", []):
+                if item.get("enable", True):
+                    symbols.append({
+                        "symbol": item.get("symbol", ""),
+                        "base": item.get("baseCurrency", item.get("base", "")),
+                        "quote": item.get("quoteCurrency", item.get("quote", "")),
+                        "type": item.get("type", "SPOT").upper(),
+                    })
+
+            # Filter by quote currency if requested
+            quote_filter = request.GET.get("quote", "").upper()
+            if quote_filter:
+                symbols = [s for s in symbols if s["quote"] == quote_filter]
+
+            # Sort by symbol
+            symbols.sort(key=lambda s: s["symbol"])
+
+            return JsonResponse({"success": True, "symbols": symbols})
+
+        except httpx.HTTPError as e:
+            return JsonResponse(
+                {"success": False, "error": f"HTTP error: {e}"},
+                status=500,
+            )
+        except Exception as e:
+            return JsonResponse(
+                {"success": False, "error": str(e)},
+                status=500,
+            )

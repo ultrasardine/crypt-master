@@ -25,6 +25,7 @@ import logging
 import os
 import signal
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 import django
@@ -67,7 +68,9 @@ system_logger = get_system_logger()
 SIGNALS_CHANNEL = "signals"
 
 # Default candle interval for analysis
-DEFAULT_CANDLE_INTERVAL = "1H"
+# Note: Pionex API supports 1M, 5M, 15M, 30M, 4H, 8H, 12H, 1D
+# 1H is NOT supported, so we use 4H for hourly-scale analysis
+DEFAULT_CANDLE_INTERVAL = "4H"
 
 # Minimum candles required for analysis
 MIN_CANDLES_REQUIRED = 50
@@ -749,8 +752,15 @@ class MarketAnalysisAgent:
         # Serialize signal to JSON
         signal_data = self._signal_to_json(signal)
 
+        # Wrap signal in the expected payload format for SignalSubscriber
+        payload = {
+            "signal": signal_data,
+            "published_at": datetime.now(tz=UTC).isoformat(),
+            "source": "market-agent",
+        }
+
         # Publish to signals channel
-        await redis.publish(SIGNALS_CHANNEL, json.dumps(signal_data))
+        await redis.publish(SIGNALS_CHANNEL, json.dumps(payload))
 
         # Log the signal using structured trading logger
         trading_logger.log_signal(
@@ -854,34 +864,47 @@ class MarketAnalysisAgent:
         Returns:
             Dictionary representation of the signal
         """
+
+        def _to_json_value(val: Any) -> Any:
+            """Convert numpy types to Python native types for JSON serialization."""
+            if val is None:
+                return None
+            if isinstance(val, (np.integer, np.floating)):
+                return float(val)
+            if isinstance(val, np.bool_):
+                return bool(val)
+            if isinstance(val, np.ndarray):
+                return val.tolist()
+            return val
+
         return {
             "symbol": signal.symbol,
             "direction": signal.direction.value,
-            "confidence": signal.confidence,
+            "confidence": float(signal.confidence),
             "timestamp": signal.timestamp.isoformat(),
-            "meets_threshold": signal.meets_threshold,
-            "threshold_used": signal.threshold_used,
+            "meets_threshold": bool(signal.meets_threshold),
+            "threshold_used": float(signal.threshold_used),
             "reasoning": signal.reasoning,
             "indicators": [
                 {
                     "name": ind.name,
                     "signal": ind.signal.value,
-                    "confidence": ind.confidence,
-                    "weight": ind.weight,
-                    "value": ind.value,
-                    "data_insufficient": ind.data_insufficient,
+                    "confidence": float(ind.confidence),
+                    "weight": float(ind.weight),
+                    "value": _to_json_value(ind.value),
+                    "data_insufficient": bool(ind.data_insufficient),
                 }
                 for ind in signal.indicators
             ],
             "breakdown": {
-                "technical_score": signal.breakdown.technical_score,
-                "sentiment_score": signal.breakdown.sentiment_score,
-                "news_score": signal.breakdown.news_score,
-                "alignment_bonus": signal.breakdown.alignment_bonus,
-                "base_score": signal.breakdown.base_score,
-                "final_score": signal.breakdown.final_score,
-                "agreeing_indicators": signal.breakdown.agreeing_indicators,
-                "total_indicators": signal.breakdown.total_indicators,
+                "technical_score": float(signal.breakdown.technical_score),
+                "sentiment_score": float(signal.breakdown.sentiment_score),
+                "news_score": float(signal.breakdown.news_score),
+                "alignment_bonus": float(signal.breakdown.alignment_bonus),
+                "base_score": float(signal.breakdown.base_score),
+                "final_score": float(signal.breakdown.final_score),
+                "agreeing_indicators": int(signal.breakdown.agreeing_indicators),
+                "total_indicators": int(signal.breakdown.total_indicators),
             },
         }
 

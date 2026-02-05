@@ -101,7 +101,7 @@ class LoggingConfig:
 
 
 class DecimalEncoder(json.JSONEncoder):
-    """JSON encoder that handles Decimal and datetime objects."""
+    """JSON encoder that handles Decimal, datetime, numpy, and enum objects."""
 
     def default(self, obj: Any) -> Any:
         if isinstance(obj, Decimal):
@@ -110,6 +110,11 @@ class DecimalEncoder(json.JSONEncoder):
             return obj.isoformat()
         if isinstance(obj, Enum):
             return obj.value
+        # Handle numpy types
+        if hasattr(obj, "item"):  # numpy scalar types have .item() method
+            return obj.item()
+        if hasattr(obj, "tolist"):  # numpy arrays have .tolist() method
+            return obj.tolist()
         if hasattr(obj, "__dict__"):
             return obj.__dict__
         return super().default(obj)

@@ -64,6 +64,53 @@ class TradingPairManager(models.Manager):
         """Get USDT trading pairs."""
         return self.get_queryset().active().by_quote("USDT")
 
+    def get_or_create_from_symbol(self, symbol: str) -> "TradingPair":
+        """
+        Get or create a trading pair from a symbol string.
+
+        Parses the symbol (e.g., 'BTC_USDT') to extract base and quote currencies.
+
+        Args:
+            symbol: Trading pair symbol in format 'BASE_QUOTE' (e.g., 'BTC_USDT')
+
+        Returns:
+            TradingPair instance (created if it didn't exist)
+        """
+        symbol = symbol.upper().strip()
+        if "_" in symbol:
+            base, quote = symbol.split("_", 1)
+        else:
+            # Assume USDT quote if no separator
+            base = symbol
+            quote = "USDT"
+            symbol = f"{base}_{quote}"
+
+        pair, _ = self.get_or_create(
+            symbol=symbol,
+            defaults={
+                "base_currency": base,
+                "quote_currency": quote,
+                "is_active": True,
+            },
+        )
+        return pair
+
+    def ensure_pairs_exist(self, symbols: list[str]) -> list["TradingPair"]:
+        """
+        Ensure all trading pairs in the list exist in the database.
+
+        Args:
+            symbols: List of trading pair symbols
+
+        Returns:
+            List of TradingPair instances
+        """
+        pairs = []
+        for symbol in symbols:
+            if symbol:
+                pairs.append(self.get_or_create_from_symbol(symbol))
+        return pairs
+
 
 class TradingPair(TimeStampedModel):
     """

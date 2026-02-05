@@ -91,6 +91,19 @@ class UserProfileForm(forms.ModelForm):
     - 1.3: Store user preferences (trading mode, notifications, risk tolerance)
     """
 
+    # Override JSONField with CharField to accept comma-separated input
+    active_trading_pairs = forms.CharField(
+        required=False,
+        widget=forms.Textarea(
+            attrs={
+                "rows": 3,
+                "placeholder": "Enter trading pairs (e.g., BTC_USDT, ETH_USDT)",
+                "class": "config-input",
+            }
+        ),
+        help_text="Comma-separated list of trading pairs you want to monitor.",
+    )
+
     class Meta:
         model = UserProfile
         fields = [
@@ -107,13 +120,6 @@ class UserProfileForm(forms.ModelForm):
                 attrs={"class": "config-input"},
             ),
             "notification_email_enabled": forms.CheckboxInput(),
-            "active_trading_pairs": forms.Textarea(
-                attrs={
-                    "rows": 3,
-                    "placeholder": "Enter trading pairs (e.g., BTC_USDT, ETH_USDT)",
-                    "class": "config-input",
-                }
-            ),
         }
 
     def __init__(self, *args, **kwargs):
@@ -134,6 +140,25 @@ class UserProfileForm(forms.ModelForm):
             pairs = [p.strip().upper() for p in value.split(",") if p.strip()]
             return pairs
         return value if value else []
+
+    def save(self, commit=True):
+        """
+        Save the profile and ensure trading pairs exist in the database.
+
+        This auto-creates TradingPair records for any symbols the user adds
+        to their active_trading_pairs list.
+        """
+        instance = super().save(commit=False)
+
+        # Auto-create TradingPair records for user's active pairs
+        if instance.active_trading_pairs:
+            from .models import TradingPair
+
+            TradingPair.objects.ensure_pairs_exist(instance.active_trading_pairs)
+
+        if commit:
+            instance.save()
+        return instance
 
 
 class APIKeyForm(forms.Form):

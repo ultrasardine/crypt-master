@@ -1,5 +1,6 @@
 """Trading views."""
 
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import DetailView, ListView
 
 from apps.core.models import TradingPair
@@ -7,8 +8,8 @@ from apps.core.models import TradingPair
 from .models import Signal, SignalDirection, Trade, TradeSide
 
 
-class SignalListView(ListView):
-    """List view for trading signals with filtering."""
+class SignalListView(LoginRequiredMixin, ListView):
+    """List view for trading signals with filtering. Filtered by user's active pairs."""
 
     model = Signal
     template_name = "trading/signal_list.html"
@@ -16,8 +17,17 @@ class SignalListView(ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        """Filter signals based on query parameters."""
+        """Filter signals to user's active trading pairs."""
         queryset = Signal.objects.select_related("trading_pair").all()
+
+        # Filter by user's active trading pairs
+        if hasattr(self.request.user, "profile"):
+            active_pairs = self.request.user.profile.active_trading_pairs
+            if active_pairs:
+                queryset = queryset.filter(trading_pair__symbol__in=active_pairs)
+            else:
+                # No pairs configured - show no signals
+                queryset = queryset.none()
 
         # Filter by direction
         direction = self.request.GET.get("direction")
@@ -60,17 +70,27 @@ class SignalListView(ListView):
         context["current_min_confidence"] = self.request.GET.get("min_confidence", "")
         context["current_symbol"] = self.request.GET.get("symbol", "")
 
-        # Summary stats
-        recent = Signal.objects.recent(hours=24)
+        # Summary stats - filtered by user's active pairs
+        active_pairs = []
+        if hasattr(self.request.user, "profile"):
+            active_pairs = self.request.user.profile.active_trading_pairs or []
+
+        if active_pairs:
+            recent = Signal.objects.filter(
+                trading_pair__symbol__in=active_pairs
+            ).recent(hours=24)
+        else:
+            recent = Signal.objects.none()
+
         context["total_signals_24h"] = recent.count()
-        context["buy_signals_24h"] = recent.buy_signals().count()
-        context["sell_signals_24h"] = recent.sell_signals().count()
-        context["avg_confidence"] = recent.average_confidence()
+        context["buy_signals_24h"] = recent.buy_signals().count() if active_pairs else 0
+        context["sell_signals_24h"] = recent.sell_signals().count() if active_pairs else 0
+        context["avg_confidence"] = recent.average_confidence() if active_pairs else None
 
         return context
 
 
-class SignalDetailView(DetailView):
+class SignalDetailView(LoginRequiredMixin, DetailView):
     """Detail view for a single signal."""
 
     model = Signal
@@ -78,18 +98,29 @@ class SignalDetailView(DetailView):
     context_object_name = "signal"
 
     def get_queryset(self):
-        """Include related trading pair."""
-        return Signal.objects.select_related("trading_pair")
+        """Filter to user's active trading pairs."""
+        queryset = Signal.objects.select_related("trading_pair")
+
+        # Filter by user's active trading pairs
+        if hasattr(self.request.user, "profile"):
+            active_pairs = self.request.user.profile.active_trading_pairs
+            if active_pairs:
+                queryset = queryset.filter(trading_pair__symbol__in=active_pairs)
+            else:
+                queryset = queryset.none()
+
+        return queryset
 
     def get_context_data(self, **kwargs):
         """Add related trades to context."""
         context = super().get_context_data(**kwargs)
-        context["trades"] = self.object.trades.all()
+        # Only show user's trades related to this signal
+        context["trades"] = self.object.trades.filter(user=self.request.user)
         return context
 
 
-class TradeListView(ListView):
-    """List view for trades with filtering and P&L display."""
+class TradeListView(LoginRequiredMixin, ListView):
+    """List view for trades with filtering and P&L display. User-isolated."""
 
     model = Trade
     template_name = "trading/trade_list.html"
@@ -97,8 +128,10 @@ class TradeListView(ListView):
     paginate_by = 50
 
     def get_queryset(self):
-        """Filter trades based on query parameters."""
-        queryset = Trade.objects.select_related("trading_pair", "signal").all()
+        """Filter trades to current user only."""
+        queryset = Trade.objects.select_related("trading_pair", "signal").filter(
+            user=self.request.user
+        )
 
         # Filter by side
         side = self.request.GET.get("side")
@@ -148,28 +181,33 @@ class TradeListView(ListView):
         context["current_profit"] = self.request.GET.get("profit", "")
         context["current_symbol"] = self.request.GET.get("symbol", "")
 
-        # Trade statistics for live trades
-        live_stats = Trade.objects.statistics(simulated=False)
+        # Trade statistics - user's trades only
+        user_trades = Trade.objects.filter(user=self.request.user)
+
+        # Live stats
+        live_stats = user_trades.live().statistics()
         context["live_stats"] = live_stats
 
-        # Trade statistics for simulated trades
-        sim_stats = Trade.objects.statistics(simulated=True)
+        # Simulated stats
+        sim_stats = user_trades.simulated().statistics()
         context["sim_stats"] = sim_stats
 
-        # Recent P&L
-        context["recent_pnl"] = Trade.objects.live().recent(hours=24).total_pnl()
-        context["recent_volume"] = Trade.objects.live().recent(hours=24).total_volume()
+        # Recent P&L - user's trades only
+        context["recent_pnl"] = user_trades.live().recent(hours=24).total_pnl()
+        context["recent_volume"] = user_trades.live().recent(hours=24).total_volume()
 
         return context
 
 
-class TradeDetailView(DetailView):
-    """Detail view for a single trade."""
+class TradeDetailView(LoginRequiredMixin, DetailView):
+    """Detail view for a single trade. User-isolated."""
 
     model = Trade
     template_name = "trading/trade_detail.html"
     context_object_name = "trade"
 
     def get_queryset(self):
-        """Include related objects."""
-        return Trade.objects.select_related("trading_pair", "signal")
+        """Only allow access to user's own trades."""
+        return Trade.objects.select_related("trading_pair", "signal").filter(
+            user=self.request.user
+        )

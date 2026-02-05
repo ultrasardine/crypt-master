@@ -1,6 +1,7 @@
 """Bot management views."""
 
 from django.contrib import messages
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.shortcuts import redirect
 from django.urls import reverse_lazy
 from django.views.generic import CreateView, DetailView, ListView, View
@@ -10,8 +11,8 @@ from apps.core.models import TradingPair
 from .models import Bot, BotEvent, BotStatus, BotType
 
 
-class BotListView(ListView):
-    """List view for bots with filtering."""
+class BotListView(LoginRequiredMixin, ListView):
+    """List view for bots with filtering. User-isolated."""
 
     model = Bot
     template_name = "bots/bot_list.html"
@@ -19,8 +20,8 @@ class BotListView(ListView):
     paginate_by = 20
 
     def get_queryset(self):
-        """Filter bots based on query parameters."""
-        queryset = Bot.objects.select_related("trading_pair").all()
+        """Filter bots to current user only."""
+        queryset = Bot.objects.select_related("trading_pair").filter(user=self.request.user)
 
         # Filter by status
         status = self.request.GET.get("status")
@@ -61,26 +62,26 @@ class BotListView(ListView):
         context["current_mode"] = self.request.GET.get("mode", "")
         context["current_symbol"] = self.request.GET.get("symbol", "")
 
-        # Summary statistics
-        all_bots = Bot.objects.all()
-        context["total_bots"] = all_bots.count()
-        context["active_bots_count"] = all_bots.active().count()
-        context["total_invested"] = all_bots.active().total_invested()
-        context["total_pnl"] = all_bots.active().total_pnl()
+        # Summary statistics - user's bots only
+        user_bots = Bot.objects.filter(user=self.request.user)
+        context["total_bots"] = user_bots.count()
+        context["active_bots_count"] = user_bots.active().count()
+        context["total_invested"] = user_bots.active().total_invested()
+        context["total_pnl"] = user_bots.active().total_pnl()
 
         return context
 
 
-class BotDetailView(DetailView):
-    """Detail view for a single bot with events history."""
+class BotDetailView(LoginRequiredMixin, DetailView):
+    """Detail view for a single bot with events history. User-isolated."""
 
     model = Bot
     template_name = "bots/bot_detail.html"
     context_object_name = "bot"
 
     def get_queryset(self):
-        """Include related trading pair."""
-        return Bot.objects.select_related("trading_pair")
+        """Only allow access to user's own bots."""
+        return Bot.objects.select_related("trading_pair").filter(user=self.request.user)
 
     def get_context_data(self, **kwargs):
         """Add bot events to context."""
@@ -89,7 +90,7 @@ class BotDetailView(DetailView):
         return context
 
 
-class BotCreateView(CreateView):
+class BotCreateView(LoginRequiredMixin, CreateView):
     """View for creating a new bot."""
 
     model = Bot
@@ -105,8 +106,9 @@ class BotCreateView(CreateView):
         return context
 
     def form_valid(self, form):
-        """Set initial status and create bot event."""
+        """Set initial status, user, and create bot event."""
         form.instance.status = BotStatus.PENDING
+        form.instance.user = self.request.user
         # Generate a placeholder bot ID (in real usage, this comes from Pionex API)
         import uuid
 
@@ -126,15 +128,16 @@ class BotCreateView(CreateView):
         return response
 
 
-class BotStopView(View):
-    """View for stopping a bot."""
+class BotStopView(LoginRequiredMixin, View):
+    """View for stopping a bot. User-isolated."""
 
     def post(self, request, pk):
         """Stop the bot and create event."""
         from django.utils import timezone
 
         try:
-            bot = Bot.objects.get(pk=pk)
+            # Only allow stopping user's own bots
+            bot = Bot.objects.get(pk=pk, user=request.user)
 
             if bot.status != BotStatus.ACTIVE:
                 messages.warning(request, f"Bot {bot.pionex_bot_id} is not active.")

@@ -227,3 +227,84 @@ paths:
                   data:
                     type: object
                 additionalProperties: true
+
+  /api/v1/market/klines:
+    get:
+      tags: [Markets]
+      summary: Candlestick/Kline data
+      description: |
+        Obtém dados de candlestick (klines) para um símbolo.
+        
+        **Intervalos válidos:** 1M, 5M, 15M, 30M (minutos), 4H, 8H, 12H (horas), 1D (dia).
+        
+        **Nota:** Intervalos 1H e 2H NÃO são suportados pela API Pionex.
+      parameters:
+        - $ref: '#/components/parameters/Symbol'
+        - name: interval
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [1M, 5M, 15M, 30M, 4H, 8H, 12H, 1D]
+          description: |
+            Intervalo do candlestick. Valores válidos:
+            - Minutos: 1M, 5M, 15M, 30M
+            - Horas: 4H, 8H, 12H (1H e 2H não suportados)
+            - Dia: 1D
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 100
+            maximum: 1000
+          description: Número máximo de candles (default 100, max 1000).
+        - name: startTime
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+          description: Timestamp de início em milissegundos.
+        - name: endTime
+          in: query
+          required: false
+          schema:
+            type: integer
+            format: int64
+          description: Timestamp de fim em milissegundos.
+      responses:
+        '200':
+          description: Dados de candlestick.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: boolean
+                  timestamp:
+                    type: integer
+                    format: int64
+                  data:
+                    type: object
+                    properties:
+                      klines:
+                        type: array
+                        items:
+                          type: object
+                          properties:
+                            time:
+                              type: integer
+                              format: int64
+                            open:
+                              type: string
+                            high:
+                              type: string
+                            low:
+                              type: string
+                            close:
+                              type: string
+                            volume:
+                              type: string
+                additionalProperties: true

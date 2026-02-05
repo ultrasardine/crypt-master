@@ -486,6 +486,58 @@ class TestGetCandles:
             call_args = mock_http_client.get.call_args
             assert call_args.kwargs["params"]["limit"] == 50
 
+    @pytest.mark.asyncio
+    async def test_get_candles_maps_interval_to_valid_pionex_format(self) -> None:
+        """Test that interval is mapped to valid Pionex API format.
+
+        Pionex API supports: 1M, 5M, 15M, 30M, 4H, 8H, 12H, 1D
+        Note: 1H and 2H are NOT supported, so they are mapped to closest valid intervals.
+        """
+        client = PionexClient(api_key="key", api_secret="secret")
+
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.content = b'{"result": true}'
+        mock_response.json.return_value = SAMPLE_CANDLES_RESPONSE
+
+        with patch.object(client, "_ensure_client") as mock_ensure:
+            mock_http_client = AsyncMock()
+            mock_http_client.get = AsyncMock(return_value=mock_response)
+            mock_ensure.return_value = mock_http_client
+
+            # Test 1H maps to 30M (1H not supported by Pionex)
+            await client.get_candles("BTC_USDT", "1H")
+            call_args = mock_http_client.get.call_args
+            assert call_args.kwargs["params"]["interval"] == "30M"
+
+    @pytest.mark.asyncio
+    async def test_get_candles_maps_lowercase_intervals(self) -> None:
+        """Test that lowercase intervals are mapped to uppercase Pionex format."""
+        client = PionexClient(api_key="key", api_secret="secret")
+
+        mock_response = MagicMock()
+        mock_response.is_success = True
+        mock_response.content = b'{"result": true}'
+        mock_response.json.return_value = SAMPLE_CANDLES_RESPONSE
+
+        with patch.object(client, "_ensure_client") as mock_ensure:
+            mock_http_client = AsyncMock()
+            mock_http_client.get = AsyncMock(return_value=mock_response)
+            mock_ensure.return_value = mock_http_client
+
+            # Test lowercase 4h maps to uppercase 4H
+            await client.get_candles("BTC_USDT", "4h")
+            call_args = mock_http_client.get.call_args
+            assert call_args.kwargs["params"]["interval"] == "4H"
+
+    @pytest.mark.asyncio
+    async def test_get_candles_raises_for_invalid_interval(self) -> None:
+        """Test that invalid intervals raise ValueError."""
+        client = PionexClient(api_key="key", api_secret="secret")
+
+        with pytest.raises(ValueError, match="Invalid interval"):
+            await client.get_candles("BTC_USDT", "invalid")
+
 
 class TestGetDepth:
     """Tests for get_depth method."""
