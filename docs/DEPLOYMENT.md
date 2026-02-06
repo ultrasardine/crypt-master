@@ -169,8 +169,8 @@ In Portainer, verify all containers are running:
 - `crypt-master_web_1` - Django web app
 - `crypt-master_market-agent_1` - Market analysis
 - `crypt-master_bot-agent_1` - Bot management
-- `crypt-master_celery_1` - Async tasks
-- `crypt-master_celery-beat_1` - Scheduled tasks
+- `crypt-master_celery_1` - Async tasks (portfolio sync, bot sync, public data fetch)
+- `crypt-master_celery-beat_1` - Scheduled tasks (runs sync tasks periodically)
 - `crypt-master_postgres_1` - Database
 - `crypt-master_redis_1` - Cache/broker
 

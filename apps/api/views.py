@@ -1,5 +1,6 @@
 """REST API views."""
 
+import logging
 import uuid
 from decimal import Decimal
 
@@ -28,6 +29,8 @@ from .serializers import (
     TradeStatisticsSerializer,
     TradingPairSerializer,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class StandardPagination(PageNumberPagination):
@@ -720,3 +723,185 @@ class TokenRegenerateView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
+
+
+class HealthCheckView(APIView):
+    """API view for checking background service health.
+
+    Returns the status of all background Celery tasks including
+    last successful run time and current health status.
+
+    Requirements:
+    - 8.5: Health check endpoints for background services
+    """
+
+    permission_classes = []  # Public endpoint
+
+    # Task configuration with max age thresholds (in minutes)
+    TASK_CONFIGS = {
+        "sync-portfolios": {
+            "name": "Portfolio Sync",
+            "max_age_minutes": 10,  # Should run every 5 minutes
+        },
+        "sync-bots": {
+            "name": "Bot Sync",
+            "max_age_minutes": 5,  # Should run every 2 minutes
+        },
+        "fetch-public-market-data": {
+            "name": "Public Market Data",
+            "max_age_minutes": 90,  # Should run every hour
+        },
+        "update-signal-accuracy": {
+            "name": "Signal Accuracy",
+            "max_age_minutes": 90,  # Should run every hour
+        },
+    }
+
+    def get(self, request):
+        """Get health status of all background services.
+
+        Returns JSON with:
+        - overall_status: "healthy", "degraded", or "unhealthy"
+        - services: dict of service statuses
+        - timestamp: current server time
+
+        Requirements:
+        - 8.5: Check last successful run of each task
+        """
+
+        from django_celery_beat.models import PeriodicTask
+
+        services = {}
+        overall_healthy = True
+        degraded = False
+
+        for task_key, config in self.TASK_CONFIGS.items():
+            try:
+                periodic_task = PeriodicTask.objects.filter(name=task_key).first()
+                service_status = self._check_task_status(periodic_task, config)
+                services[config["name"]] = service_status
+
+                # Update overall health flags
+                if service_status["status"] in ("unknown", "disabled", "pending"):
+                    degraded = True
+                elif service_status["status"] in ("stale", "error"):
+                    overall_healthy = False
+
+            except Exception as e:
+                logger.exception(f"Error checking status for task {task_key}: {e}")
+                services[config["name"]] = self._create_service_status(
+                    status="error",
+                    message=f"Error checking status: {str(e)}",
+                    last_run=None,
+                )
+                overall_healthy = False
+
+        overall_status = self._determine_overall_status(overall_healthy, degraded)
+
+        return Response(
+            {
+                "overall_status": overall_status,
+                "services": services,
+                "timestamp": timezone.now().isoformat(),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    def _check_task_status(self, periodic_task, config: dict) -> dict:
+        """Check the status of a single periodic task.
+
+        Args:
+            periodic_task: PeriodicTask instance or None
+            config: Task configuration dict with name and max_age_minutes
+
+        Returns:
+            Service status dict with status, message, last_run, and optional age_minutes
+        """
+        from datetime import timedelta
+
+        if not periodic_task:
+            return self._create_service_status(
+                status="unknown",
+                message="Task not configured",
+                last_run=None,
+            )
+
+        if not periodic_task.enabled:
+            return self._create_service_status(
+                status="disabled",
+                message="Task is disabled",
+                last_run=periodic_task.last_run_at,
+            )
+
+        if not periodic_task.last_run_at:
+            return self._create_service_status(
+                status="pending",
+                message="Task has not run yet",
+                last_run=None,
+            )
+
+        # Calculate age of last run
+        age = timezone.now() - periodic_task.last_run_at
+        max_age = timedelta(minutes=config["max_age_minutes"])
+        age_minutes = int(age.total_seconds() / 60)
+
+        if age > max_age:
+            return self._create_service_status(
+                status="stale",
+                message=f"Last run was {age_minutes} minutes ago",
+                last_run=periodic_task.last_run_at,
+                age_minutes=age_minutes,
+            )
+
+        return self._create_service_status(
+            status="healthy",
+            message="Running normally",
+            last_run=periodic_task.last_run_at,
+            age_minutes=age_minutes,
+        )
+
+    def _create_service_status(
+        self,
+        status: str,
+        message: str,
+        last_run,
+        age_minutes: int | None = None,
+    ) -> dict:
+        """Create a standardized service status dictionary.
+
+        Args:
+            status: Service status (healthy, stale, error, etc.)
+            message: Human-readable status message
+            last_run: Last run datetime or None
+            age_minutes: Optional age in minutes
+
+        Returns:
+            Service status dict
+        """
+        result = {
+            "status": status,
+            "message": message,
+            "last_run": last_run.isoformat() if last_run else None,
+        }
+
+        if age_minutes is not None:
+            result["age_minutes"] = age_minutes
+
+        return result
+
+    def _determine_overall_status(self, overall_healthy: bool, degraded: bool) -> str:
+        """Determine the overall system health status.
+
+        Args:
+            overall_healthy: Whether all services are healthy
+            degraded: Whether any services are degraded
+
+        Returns:
+            Overall status string: "healthy", "degraded", or "unhealthy"
+        """
+        if not overall_healthy:
+            return "unhealthy"
+        elif degraded:
+            return "degraded"
+        else:
+            return "healthy"

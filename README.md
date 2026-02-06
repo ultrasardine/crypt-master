@@ -29,10 +29,11 @@ Crypt Master is a fully automated cryptocurrency trading system that integrates 
 
 - **Multi-Tenant Architecture**: Complete user data isolation with per-user encrypted API keys
 - **Multi-factor Market Analysis**: Technical indicators (RSI, MACD, Bollinger Bands, ADX, Stochastic), sentiment analysis, and volume anomaly detection
+- **Public Market Data Integration**: Fear & Greed Index, funding rates, open interest, and liquidation data from public APIs
 - **Automated Bot Management**: Create, monitor, and stop Grid, DCA, and Infinity Grid bots based on market signals
 - **Risk Management**: Kelly Criterion position sizing, drawdown limits, per-trade risk limits, and automatic bot stopping
 - **Dry-Run Mode**: Test strategies safely without executing real trades
-- **Real-Time Dashboard**: WebSocket-powered live updates for signals, bot status, and performance metrics
+- **Real-Time Dashboard**: WebSocket-powered live updates for signals, bot status, performance metrics, and market sentiment
 - **Backtesting**: Test strategies against historical data before deploying
 
 ---
@@ -133,6 +134,10 @@ crypt-master/
 │   ├── pionex/            # Pionex API client
 │   ├── risk/              # Risk management
 │   ├── simulation/        # Dry-run simulator
+│   ├── sync/              # External data synchronization services
+│   │   ├── portfolio.py   # Portfolio balance sync from Pionex
+│   │   ├── bots.py        # Bot status and P&L sync
+│   │   └── public_data.py # Public market data (Fear & Greed, funding rates)
 │   ├── messaging/         # Redis pub/sub, WebSocket
 │   ├── logging/           # Structured logging
 │   ├── config/            # Configuration utilities
@@ -154,12 +159,16 @@ crypt-master/
 ### Data Flow
 
 1. **Market Agent** fetches price data from Pionex API every 60 seconds
-2. **Technical Analysis** calculates indicators (RSI, MACD, BB, etc.)
-3. **Signal Generator** produces BUY/SELL/HOLD signals with confidence scores
-4. **Signals** are published to Redis and stored in PostgreSQL
-5. **Bot Agent** subscribes to signals and evaluates bot actions
-6. **Risk Manager** validates all bot operations against limits
-7. **Dashboard** receives real-time updates via WebSocket
+2. **Public Data Service** fetches market sentiment data (Fear & Greed Index, funding rates, open interest) from public APIs every hour
+3. **Portfolio Sync Service** fetches account balances from Pionex every 5 minutes and creates portfolio snapshots
+4. **Bot Sync Service** fetches bot status and P&L from Pionex every 2 minutes and updates local records
+5. **Technical Analysis** calculates indicators (RSI, MACD, BB, etc.)
+6. **Signal Generator** produces BUY/SELL/HOLD signals with confidence scores
+7. **Signal Accuracy Tracker** records outcomes when bots stop and calculates accuracy metrics
+8. **Signals** are published to Redis and stored in PostgreSQL
+9. **Bot Agent** subscribes to signals and evaluates bot actions
+10. **Risk Manager** validates all bot operations against limits
+11. **Dashboard** receives real-time updates via WebSocket including portfolio data, bot performance, signal accuracy, and market sentiment
 
 ---
 
@@ -354,6 +363,14 @@ BOLLINGER_PERIOD=20
 BOLLINGER_STD=2.0
 
 # =============================================================================
+# Background Tasks (Celery Beat Schedule)
+# =============================================================================
+# Portfolio sync runs every 5 minutes
+# Bot sync runs every 2 minutes
+# Public market data fetch runs every 1 hour
+# Signal accuracy update runs every 1 hour
+
+# =============================================================================
 # Logging
 # =============================================================================
 LOG_LEVEL=INFO
@@ -399,9 +416,18 @@ make run-market-agent
 # Terminal 3: Bot management agent
 make run-bot-agent
 
-# Terminal 4: Celery worker (optional, for async tasks)
+# Terminal 4: Celery worker (for background tasks)
 make run-celery
+
+# Terminal 5: Celery beat (for scheduled tasks)
+make run-celery-beat
 ```
+
+**Background Tasks (Celery Beat):**
+- **Portfolio Sync** (every 5 minutes): Fetches account balances from Pionex and creates portfolio snapshots
+- **Bot Sync** (every 2 minutes): Updates bot status and P&L from Pionex, records signal outcomes
+- **Public Market Data** (every 1 hour): Fetches Fear & Greed Index, funding rates, and open interest
+- **Signal Accuracy** (every 1 hour): Calculates signal accuracy metrics for all users
 
 #### Production (Docker)
 
@@ -784,6 +810,22 @@ ws.onmessage = (event) => {
 ## Troubleshooting
 
 ### Common Issues
+
+#### No Portfolio Data or Bot Updates in Dashboard
+
+If you're not seeing portfolio data or bot updates, run the diagnostic script:
+
+```bash
+uv run python scripts/diagnose_pionex_sync.py
+```
+
+This will check:
+- If users have API keys configured
+- If Celery Beat tasks are scheduled
+- If tasks have run recently
+- If portfolio snapshots and bot data exist
+
+See [docs/RUNNING_CELERY.md](docs/RUNNING_CELERY.md) for detailed Celery troubleshooting.
 
 #### TA-Lib Installation Fails
 

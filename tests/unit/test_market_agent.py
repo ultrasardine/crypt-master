@@ -382,10 +382,11 @@ class TestAsyncMethods:
         call_args = mock_redis.publish.call_args
         assert call_args[0][0] == "signals"  # Channel name
 
-        # Verify JSON payload
+        # Verify JSON payload - signal is nested under "signal" key
         payload = json.loads(call_args[0][1])
-        assert payload["symbol"] == "BTC_USDT"
-        assert payload["direction"] == "BUY"
+        assert "signal" in payload
+        assert payload["signal"]["symbol"] == "BTC_USDT"
+        assert payload["signal"]["direction"] == "BUY"
 
     @pytest.mark.asyncio
     async def test_get_sentiment_score_returns_indicator_score(self, agent, mock_settings):

@@ -64,7 +64,7 @@ class WebSocketBroadcaster:
         - 10.11: Publish bot events to WebSocket
     """
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize the broadcaster."""
         self._channel_layer = None
 

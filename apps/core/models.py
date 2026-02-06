@@ -476,6 +476,46 @@ class UserProfile(TimeStampedModel):
         self.save(update_fields=["encrypted_api_key", "encrypted_api_secret", "api_key_salt"])
 
 
+class MarketSentimentData(TimeStampedModel):
+    """
+    Stores public market sentiment data from external APIs.
+
+    Fetched periodically and displayed on dashboard.
+
+    Requirements:
+    - 4.5: Store market sentiment data in database
+    """
+
+    fear_greed_index = models.IntegerField(null=True)
+    fear_greed_classification = models.CharField(max_length=20, blank=True)
+    funding_rates = models.JSONField(default=dict)
+    liquidation_volume_24h = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        null=True,
+    )
+    liquidation_long_percent = models.FloatField(null=True)
+    liquidation_short_percent = models.FloatField(null=True)
+    open_interest = models.JSONField(default=dict)
+    btc_dominance = models.FloatField(null=True)
+    is_stale = models.BooleanField(default=False)
+    fetched_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-fetched_at"]
+        get_latest_by = "fetched_at"
+        verbose_name = "Market Sentiment Data"
+        verbose_name_plural = "Market Sentiment Data"
+
+    @classmethod
+    def get_latest(cls) -> "MarketSentimentData | None":
+        """Get the most recent market sentiment data."""
+        return cls.objects.first()
+
+    def __str__(self) -> str:
+        return f"Market Sentiment @ {self.fetched_at}"
+
+
 @receiver(post_save, sender=User)
 def create_user_profile(sender, instance: User, created: bool, **kwargs) -> None:
     """

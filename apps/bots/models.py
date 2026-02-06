@@ -189,6 +189,21 @@ class Bot(TimeStampedModel):
     is_simulated = models.BooleanField(default=False)
     stopped_at = models.DateTimeField(null=True, blank=True)
     stop_reason = models.TextField(blank=True)
+    
+    # New fields for dashboard integration
+    triggered_by_signal = models.ForeignKey(
+        "trading.Signal",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="triggered_bots",
+        help_text="The signal that triggered this bot creation",
+    )
+    last_synced_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Last time bot data was synced from Pionex",
+    )
 
     objects = BotManager()
 

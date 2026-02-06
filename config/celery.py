@@ -23,13 +23,31 @@ app.autodiscover_tasks()
 
 # Celery Beat schedule for periodic tasks
 app.conf.beat_schedule = {
+    # Dashboard Integration Tasks
+    "sync-portfolios": {
+        "task": "apps.core.tasks.sync_portfolios",
+        "schedule": 300.0,  # Every 5 minutes
+    },
+    "sync-bots": {
+        "task": "apps.core.tasks.sync_bots",
+        "schedule": 120.0,  # Every 2 minutes
+    },
+    "fetch-public-market-data": {
+        "task": "apps.core.tasks.fetch_public_market_data",
+        "schedule": 3600.0,  # Every 1 hour
+    },
+    "update-signal-accuracy": {
+        "task": "apps.trading.tasks.update_signal_accuracy",
+        "schedule": 3600.0,  # Every 1 hour
+    },
+    # Legacy Tasks
     "cleanup-old-signals": {
         "task": "apps.trading.tasks.cleanup_old_signals",
         "schedule": 3600.0,  # Every hour
     },
     "portfolio-snapshot": {
         "task": "apps.core.tasks.create_portfolio_snapshot",
-        "schedule": 300.0,  # Every 5 minutes
+        "schedule": 300.0,  # Every 5 minutes (DEPRECATED)
     },
     "daily-report": {
         "task": "apps.trading.tasks.generate_daily_report",

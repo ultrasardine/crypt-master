@@ -18,7 +18,9 @@ class SignalListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         """Filter signals to user's active trading pairs."""
-        queryset = Signal.objects.select_related("trading_pair").all()
+        queryset = Signal.objects.select_related("trading_pair").prefetch_related(
+            "outcome", "outcome__bot"
+        ).all()
 
         # Filter by user's active trading pairs
         if hasattr(self.request.user, "profile"):

@@ -1,11 +1,13 @@
 """Dashboard views."""
 
+import json
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 
 from apps.bots.models import Bot
-from apps.core.models import PortfolioSnapshot
-from apps.trading.models import Signal, Trade
+from apps.core.models import MarketSentimentData, PortfolioSnapshot
+from apps.trading.models import Signal, SignalAccuracyMetrics, Trade
 
 
 class DashboardHomeView(LoginRequiredMixin, TemplateView):
@@ -65,6 +67,16 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
         # System status
         context["dry_run_mode"] = self._get_dry_run_status()
 
+        # Market sentiment data
+        context["market_sentiment"] = self._get_market_sentiment()
+
+        # Signal accuracy metrics
+        context["signal_accuracy"] = self._get_signal_accuracy(user)
+
+        # Chart data
+        context["portfolio_chart_data"] = json.dumps(self._get_portfolio_chart_data(user))
+        context["bot_performance_data"] = json.dumps(self._get_bot_performance_data(user))
+
         return context
 
     def _get_dry_run_status(self) -> bool:
@@ -72,3 +84,98 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
         from apps.core.models import SystemConfig
 
         return SystemConfig.get_value("dry_run_mode", default=True)
+
+    def _get_market_sentiment(self) -> MarketSentimentData | None:
+        """
+        Get latest market sentiment data.
+
+        Returns:
+            Latest MarketSentimentData or None if no data available.
+
+        Requirements: 4.8, 4.9, 4.10
+        """
+        return MarketSentimentData.get_latest()
+
+    def _get_signal_accuracy(self, user) -> dict:
+        """
+        Get signal accuracy metrics for user.
+
+        Args:
+            user: The user to get accuracy metrics for.
+
+        Returns:
+            Dictionary with accuracy metrics or empty dict if no data available.
+
+        Requirements: 3.6
+        """
+        try:
+            metrics = SignalAccuracyMetrics.objects.filter(user=user).latest("calculated_at")
+            return {
+                "overall_accuracy": metrics.overall_accuracy,
+                "buy_accuracy": metrics.buy_accuracy,
+                "sell_accuracy": metrics.sell_accuracy,
+                "confidence_correlation": metrics.confidence_correlation,
+                "total_executed_signals": metrics.total_executed_signals,
+                "profitable_signals": metrics.profitable_signals,
+                "unprofitable_signals": metrics.unprofitable_signals,
+                "average_pnl_percent": metrics.average_pnl_percent,
+                "calculated_at": metrics.calculated_at,
+            }
+        except SignalAccuracyMetrics.DoesNotExist:
+            return {}
+
+    def _get_portfolio_chart_data(self, user) -> list[dict]:
+        """
+        Get portfolio value history for charts.
+
+        Args:
+            user: The user to get portfolio history for.
+
+        Returns:
+            List of dictionaries with timestamp, total_value, and drawdown.
+
+        Requirements: 5.1, 5.2, 5.3, 5.4
+        """
+        # Get snapshots for the last 30 days
+        snapshots = PortfolioSnapshot.objects.filter(user=user).live().recent(hours=24 * 30)
+
+        return [
+            {
+                "timestamp": snapshot.created_at.isoformat(),
+                "total_value": float(snapshot.total_value),
+                "drawdown": snapshot.drawdown,
+                "high_water_mark": float(snapshot.high_water_mark),
+            }
+            for snapshot in snapshots
+        ]
+
+    def _get_bot_performance_data(self, user) -> list[dict]:
+        """
+        Get bot P&L history for charts.
+
+        Args:
+            user: The user to get bot performance for.
+
+        Returns:
+            List of dictionaries with bot performance data.
+
+        Requirements: 5.1, 5.2, 5.3, 5.4
+        """
+        # Get active and recently stopped bots
+        bots = Bot.objects.filter(user=user).filter(
+            status__in=["ACTIVE", "STOPPED"]
+        ).order_by("-created_at")[:20]
+
+        return [
+            {
+                "bot_id": bot.id,
+                "bot_type": bot.bot_type,
+                "trading_pair": bot.trading_pair.symbol if bot.trading_pair else "N/A",
+                "current_pnl": float(bot.current_pnl) if bot.current_pnl else 0.0,
+                "pnl_percent": bot.pnl_percent or 0.0,
+                "status": bot.status,
+                "created_at": bot.created_at.isoformat(),
+                "stopped_at": bot.stopped_at.isoformat() if bot.stopped_at else None,
+            }
+            for bot in bots
+        ]

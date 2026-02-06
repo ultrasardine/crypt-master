@@ -8,6 +8,7 @@ from .views import (
     BotDetailView,
     BotListView,
     ConfigView,
+    HealthCheckView,
     PortfolioHistoryView,
     PortfolioView,
     SignalDetailView,
@@ -23,6 +24,9 @@ from .views import (
 app_name = "api"
 
 urlpatterns = [
+    # Health check endpoint
+    # Requirements: 8.5
+    path("health/", HealthCheckView.as_view(), name="health_check"),
     # Authentication token endpoints
     # Requirements: 9.1, 9.2, 9.6
     path("auth/token/", TokenGenerateView.as_view(), name="token_generate"),

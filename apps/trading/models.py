@@ -308,6 +308,91 @@ class TradeManager(models.Manager):
         return qs.statistics()
 
 
+class SignalOutcome(TimeStampedModel):
+    """
+    Records the outcome of an executed signal.
+
+    Links a signal to the bot it created and tracks the final P&L.
+
+    Requirements:
+    - 3.1: Record signal outcomes when bots are stopped
+    - 3.5: Store signal outcome data for accuracy calculations
+    """
+
+    signal = models.OneToOneField(
+        Signal,
+        on_delete=models.CASCADE,
+        related_name="outcome",
+    )
+    bot = models.ForeignKey(
+        "bots.Bot",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="signal_outcomes",
+    )
+    final_pnl = models.DecimalField(
+        max_digits=20,
+        decimal_places=8,
+        null=True,
+    )
+    final_pnl_percent = models.FloatField(null=True)
+    is_profitable = models.BooleanField(null=True)
+    bot_duration_hours = models.FloatField(null=True)
+    recorded_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-recorded_at"]
+        verbose_name = "Signal Outcome"
+        verbose_name_plural = "Signal Outcomes"
+        indexes = [
+            models.Index(fields=["is_profitable", "-recorded_at"]),
+        ]
+
+    def __str__(self) -> str:
+        outcome = "profitable" if self.is_profitable else "unprofitable"
+        return f"{self.signal} - {outcome}"
+
+
+class SignalAccuracyMetrics(TimeStampedModel):
+    """
+    Aggregated signal accuracy metrics for a user.
+
+    Calculated periodically and cached for dashboard display.
+
+    Requirements:
+    - 3.2: Calculate accuracy rate as percentage of profitable signals
+    - 3.3: Track accuracy separately for BUY and SELL signals
+    - 3.5: Store accuracy metrics for dashboard display
+    """
+
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="signal_accuracy_metrics",
+    )
+    period_days = models.IntegerField(default=30)
+    total_executed_signals = models.IntegerField(default=0)
+    profitable_signals = models.IntegerField(default=0)
+    unprofitable_signals = models.IntegerField(default=0)
+    overall_accuracy = models.FloatField(default=0.0)
+    buy_accuracy = models.FloatField(default=0.0)
+    sell_accuracy = models.FloatField(default=0.0)
+    confidence_correlation = models.FloatField(null=True)
+    average_pnl_percent = models.FloatField(null=True)
+    calculated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-calculated_at"]
+        verbose_name = "Signal Accuracy Metrics"
+        verbose_name_plural = "Signal Accuracy Metrics"
+        indexes = [
+            models.Index(fields=["user", "-calculated_at"]),
+        ]
+
+    def __str__(self) -> str:
+        return f"{self.user.username} - {self.overall_accuracy:.1f}% accuracy"
+
+
 class Trade(TimeStampedModel):
     """
     Record of an executed trade.
