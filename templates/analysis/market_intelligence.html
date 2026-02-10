@@ -324,15 +324,54 @@
         </div>
     </div>
 
-    <!-- Data Sources Attribution -->
-    <div class="mt-6 rounded-lg border border-slate-700 bg-slate-800/50 p-4">
-        <h3 class="text-sm font-medium text-slate-300">Data Sources</h3>
-        <p class="mt-2 text-xs text-slate-500">
-            Market data from CoinGecko/CoinMarketCap • On-chain metrics from Glassnode/IntoTheBlock • Social sentiment from LunarCrush/Santiment • Fear & Greed Index from Alternative.me
-        </p>
-        <p class="mt-1 text-xs text-slate-500">
-            Data refreshes every 15 minutes. Some metrics may be delayed based on source availability.
-        </p>
+    <!-- Data Sources Status -->
+    <div class="mt-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">
+                Data Sources
+                <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                    <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                    <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 320px;">Shows the status of each data source. Some sources require API keys to be configured in your environment.</span>
+                </span>
+            </h2>
+        </div>
+        <div class="px-4 py-5 sm:px-6">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                {% for source in data_sources %}
+                <div class="rounded-lg border {% if source.status == 'active' %}border-emerald-500/50 bg-emerald-900/10{% elif source.status == 'requires_key' %}border-amber-500/50 bg-amber-900/10{% else %}border-slate-600 bg-slate-700/50{% endif %} p-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-medium text-slate-200">{{ source.name }}</h3>
+                        {% if source.status == 'active' %}
+                        <span class="inline-flex items-center rounded-md bg-emerald-900/50 px-2 py-0.5 text-xs font-medium text-emerald-400">
+                            <span class="mr-1 h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                            Active
+                        </span>
+                        {% elif source.status == 'requires_key' %}
+                        <span class="inline-flex items-center rounded-md bg-amber-900/50 px-2 py-0.5 text-xs font-medium text-amber-400">
+                            Needs API Key
+                        </span>
+                        {% else %}
+                        <span class="inline-flex items-center rounded-md bg-slate-600 px-2 py-0.5 text-xs font-medium text-slate-400">
+                            Unavailable
+                        </span>
+                        {% endif %}
+                    </div>
+                    <p class="mt-1 text-xs text-slate-400">{{ source.description }}</p>
+                    <div class="mt-2 flex flex-wrap gap-1">
+                        {% for data in source.data_available %}
+                        <span class="inline-flex rounded bg-slate-700 px-1.5 py-0.5 text-[10px] text-slate-400">{{ data }}</span>
+                        {% endfor %}
+                    </div>
+                    {% if source.requires_key and source.status == 'requires_key' %}
+                    <p class="mt-2 text-[10px] text-amber-400/70">Set <code class="rounded bg-slate-700 px-1">{{ source.env_var }}</code> to enable</p>
+                    {% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <p class="mt-4 text-xs text-slate-500">
+                Data refreshes every 15 minutes. Free sources (CoinGecko, Blockchain.com, Alternative.me) work without API keys.
+            </p>
+        </div>
     </div>
 
     {% else %}

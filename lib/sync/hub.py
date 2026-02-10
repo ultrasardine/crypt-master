@@ -24,6 +24,7 @@ from django.utils import timezone as django_timezone
 
 from apps.core.models import MarketContextSnapshot, TradingPair
 from lib.sync.external_sources import ExternalMetrics, ExternalSourceClient
+from lib.sync.external_sources.blockchain_client import BlockchainClient
 from lib.sync.external_sources.cmc_client import MarketDataClient
 from lib.sync.external_sources.onchain_client import OnChainClient
 from lib.sync.external_sources.social_sentiment_client import SocialSentimentClient
@@ -99,13 +100,18 @@ class MarketDataHub:
         Create default external source clients.
 
         Returns:
-            List of default clients (MarketDataClient, OnChainClient, SocialSentimentClient)
+            List of default clients including free and paid sources:
+            - MarketDataClient (CoinGecko free tier)
+            - BlockchainClient (Blockchain.com free API)
+            - OnChainClient (Glassnode/IntoTheBlock - requires API key)
+            - SocialSentimentClient (LunarCrush/Santiment - requires API key)
 
         Requirements:
-            - 1.5.1: Hub uses all three external source clients
+            - 1.5.1: Hub uses all available external source clients
         """
         return [
             MarketDataClient(),
+            BlockchainClient(),  # Free Bitcoin network data
             OnChainClient(),
             SocialSentimentClient(),
         ]
@@ -489,6 +495,8 @@ class MarketDataHub:
             "coingecko": ["btc_dominance", "global_market_cap", "total_volume_24h"],
             "coinmarketcap": ["btc_dominance", "global_market_cap", "total_volume_24h"],
             "MarketDataClient": ["btc_dominance", "global_market_cap", "total_volume_24h"],
+            "blockchain.com": ["hash_rate", "n_tx_24h", "market_price_usd", "trade_volume_usd"],
+            "BlockchainClient": ["hash_rate", "n_tx_24h", "market_price_usd", "trade_volume_usd"],
             "glassnode": ["active_addresses", "net_exchange_flow", "whale_tx_count", "defi_tvl"],
             "intotheblock": ["active_addresses", "net_exchange_flow", "whale_tx_count", "defi_tvl"],
             "OnChainClient": ["active_addresses", "net_exchange_flow", "whale_tx_count", "defi_tvl"],

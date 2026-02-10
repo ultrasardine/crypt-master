@@ -915,6 +915,9 @@ class MarketIntelligenceView(LoginRequiredMixin, TemplateView):
                 latest_snapshot, history
             )
 
+        # Data sources status
+        context["data_sources"] = self._build_data_sources_status(latest_snapshot, latest_sentiment)
+
         # All regime colors for legend
         context["all_regime_colors"] = self.REGIME_COLORS
 
@@ -1305,3 +1308,74 @@ class MarketIntelligenceView(LoginRequiredMixin, TemplateView):
         elif value > 500:
             return "Moderate whale activity"
         return "Low whale activity"
+
+    def _build_data_sources_status(
+        self,
+        snapshot: MarketContextSnapshot | None,
+        sentiment: MarketSentimentData | None,
+    ) -> list[dict]:
+        """Build data sources status for display."""
+        sources = []
+
+        # CoinGecko (free tier)
+        coingecko_working = snapshot and snapshot.btc_dominance is not None
+        sources.append({
+            "name": "CoinGecko",
+            "description": "Market data (BTC dominance, market cap, volume)",
+            "status": "active" if coingecko_working else "unavailable",
+            "requires_key": False,
+            "data_available": ["BTC Dominance", "Global Market Cap", "24h Volume"],
+        })
+
+        # Blockchain.com (free, no key)
+        blockchain_working = snapshot and (
+            snapshot.global_market_cap is not None or snapshot.total_volume_24h is not None
+        )
+        sources.append({
+            "name": "Blockchain.com",
+            "description": "Bitcoin network statistics (hash rate, transactions)",
+            "status": "active" if blockchain_working else "unavailable",
+            "requires_key": False,
+            "data_available": ["Hash Rate", "Transaction Count", "Network Stats"],
+        })
+
+        # Alternative.me Fear & Greed (free, no key)
+        fgi_working = sentiment and sentiment.fear_greed_index is not None
+        sources.append({
+            "name": "Alternative.me",
+            "description": "Fear & Greed Index",
+            "status": "active" if fgi_working else "unavailable",
+            "requires_key": False,
+            "data_available": ["Fear & Greed Index"],
+        })
+
+        # Glassnode/IntoTheBlock (requires API key)
+        onchain_working = snapshot and (
+            snapshot.active_addresses is not None
+            or snapshot.net_exchange_flow is not None
+            or snapshot.whale_tx_count is not None
+        )
+        sources.append({
+            "name": "Glassnode / IntoTheBlock",
+            "description": "On-chain metrics (addresses, exchange flow, whale activity)",
+            "status": "active" if onchain_working else "requires_key",
+            "requires_key": True,
+            "env_var": "ONCHAIN_API_KEY",
+            "data_available": ["Active Addresses", "Exchange Flow", "Whale Transactions", "DeFi TVL"],
+        })
+
+        # LunarCrush/Santiment (requires API key)
+        social_working = snapshot and (
+            snapshot.social_sentiment_score is not None
+            or snapshot.social_mention_count is not None
+        )
+        sources.append({
+            "name": "LunarCrush / Santiment",
+            "description": "Social sentiment analysis",
+            "status": "active" if social_working else "requires_key",
+            "requires_key": True,
+            "env_var": "SOCIAL_SENTIMENT_API_KEY",
+            "data_available": ["Sentiment Score", "Social Mentions", "Buzz Score"],
+        })
+
+        return sources

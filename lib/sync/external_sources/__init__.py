@@ -136,4 +136,7 @@ class ExternalSourceClient(Protocol):
 __all__ = [
     "ExternalMetrics",
     "ExternalSourceClient",
+    "BlockchainClient",
 ]
+
+from lib.sync.external_sources.blockchain_client import BlockchainClient

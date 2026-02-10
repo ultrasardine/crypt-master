@@ -30,7 +30,7 @@ Crypt Master is a fully automated cryptocurrency trading system that integrates 
 - **Multi-Tenant Architecture**: Complete user data isolation with per-user encrypted API keys
 - **Multi-factor Market Analysis**: Technical indicators (RSI, MACD, Bollinger Bands, ADX, Stochastic), sentiment analysis, and volume anomaly detection
 - **Market Intelligence Layer**: Context-aware signal generation using external market data (BTC dominance, on-chain metrics, social sentiment) with regime classification (RISK_ON, RISK_OFF, TRENDING_UP, TRENDING_DOWN, RANGE_BOUND)
-- **External Market Intelligence**: Pluggable data sources for market aggregators (CoinGecko/CoinMarketCap), on-chain metrics (Glassnode/IntoTheBlock), and social sentiment (LunarCrush/Santiment)
+- **External Market Intelligence**: Pluggable data sources for market aggregators (CoinGecko/CoinMarketCap), on-chain metrics (Glassnode/IntoTheBlock, Blockchain.com), and social sentiment (LunarCrush/Santiment)
 - **Context Scoring & Regime Detection**: Composite scores for trend strength, risk regime, and sentiment regime with automatic market regime classification
 - **Strategy Pattern Discovery**: Weekly analysis of historical signal outcomes to discover winning indicator/context combinations
 - **Public Market Data Integration**: Fear & Greed Index, funding rates, open interest, and liquidation data from public APIs
@@ -144,6 +144,7 @@ crypt-master/
 │   │   │   ├── __init__.py    # ExternalMetrics protocol & dataclass
 │   │   │   ├── cmc_client.py  # CoinGecko/CoinMarketCap market data
 │   │   │   ├── onchain_client.py    # Glassnode/IntoTheBlock on-chain metrics
+│   │   │   ├── blockchain_client.py # Blockchain.com BTC network stats (free, no API key)
 │   │   │   └── social_sentiment_client.py  # Social sentiment (planned)
 │   │   ├── portfolio.py   # Portfolio balance sync from Pionex
 │   │   ├── bots.py        # Bot status and P&L sync
@@ -172,6 +173,7 @@ crypt-master/
 2. **Market Data Hub** (Celery task) fetches external market intelligence every 15 minutes:
    - Global market data (BTC dominance, market cap, volume) from CoinGecko/CoinMarketCap
    - On-chain metrics (active addresses, exchange flow, whale transactions, DeFi TVL) from Glassnode/IntoTheBlock
+   - Bitcoin network stats (hash rate, transaction count, difficulty, mempool) from Blockchain.com (free, no API key)
    - Social sentiment (sentiment polarity, mention count, buzz score) from LunarCrush/Santiment
    - Creates `MarketContextSnapshot` records with regime classification
 3. **Public Data Service** fetches market sentiment data (Fear & Greed Index, funding rates, open interest) from public APIs every hour
@@ -416,6 +418,10 @@ ONCHAIN_PROVIDER=glassnode
 ONCHAIN_API_KEY=                           # Required for on-chain metrics
 ONCHAIN_TIMEOUT=30.0                       # Request timeout in seconds
 ONCHAIN_MAX_RETRIES=3                      # Max retry attempts on failure
+
+# Blockchain.com (free, no API key required) - Bitcoin network stats
+# Provides: hash_rate, n_tx_24h, difficulty, mempool_size, market_price_usd
+# Enabled by default, no configuration needed
 
 # Social sentiment provider: "lunarcrush" or "santiment" (both require API key)
 SOCIAL_SENTIMENT_PROVIDER=lunarcrush
