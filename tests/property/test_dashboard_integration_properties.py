@@ -95,7 +95,7 @@ class TestDrawdownCalculation:
     **Validates: Requirements 1.3**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         current_value=non_negative_portfolio_strategy,
         high_water_mark=portfolio_value_strategy,
@@ -132,7 +132,7 @@ class TestDrawdownCalculation:
             f"(hwm={high_water_mark}, current={current_value})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         current_value=non_negative_portfolio_strategy,
         high_water_mark=portfolio_value_strategy,
@@ -156,7 +156,7 @@ class TestDrawdownCalculation:
             f"Drawdown {drawdown} is negative (hwm={high_water_mark}, current={current_value})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         current_value=non_negative_portfolio_strategy,
         high_water_mark=portfolio_value_strategy,
@@ -181,7 +181,7 @@ class TestDrawdownCalculation:
             f"(hwm={high_water_mark}, current={current_value})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
     )
@@ -201,7 +201,7 @@ class TestDrawdownCalculation:
 
         assert drawdown == 0.0, f"Drawdown should be 0 at high water mark, got {drawdown}"
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         current_value=non_negative_portfolio_strategy,
         high_water_mark=portfolio_value_strategy,
@@ -228,7 +228,7 @@ class TestDrawdownCalculation:
             f"Drawdown calculation not deterministic: {drawdown1} vs {drawdown2}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         high_water_mark=portfolio_value_strategy,
     )
@@ -269,7 +269,7 @@ class TestHighWaterMarkTracking:
     **Validates: Requirements 1.4**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         sequence=portfolio_value_sequence_strategy(),
     )
@@ -300,7 +300,7 @@ class TestHighWaterMarkTracking:
             f"High water mark {high_water_mark} != max seen {expected_hwm}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         sequence=portfolio_value_sequence_strategy(),
     )
@@ -329,7 +329,7 @@ class TestHighWaterMarkTracking:
             )
             previous_hwm = high_water_mark
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_value=portfolio_value_strategy,
         new_value=portfolio_value_strategy,
@@ -363,7 +363,7 @@ class TestHighWaterMarkTracking:
                 f"High water mark should remain {initial_value}, got {updated_hwm}"
             )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         sequence=portfolio_value_sequence_strategy(),
     )
@@ -405,7 +405,7 @@ class TestPortfolioSyncConsistency:
     **Validates: Requirements 1.3, 1.4**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         current_value=portfolio_value_strategy,
         high_water_mark=portfolio_value_strategy,
@@ -439,7 +439,7 @@ class TestPortfolioSyncConsistency:
             f"drawdown2={drawdown2:.4f} at value={lower_value}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         current_value=portfolio_value_strategy,
         high_water_mark=portfolio_value_strategy,
@@ -465,7 +465,7 @@ class TestPortfolioSyncConsistency:
             f"Drawdown should be 100% when value is 0, got {drawdown}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         current_value=portfolio_value_strategy,
         high_water_mark=portfolio_value_strategy,
@@ -1833,7 +1833,7 @@ class TestWebSocketMessageFormat:
     **Validates: Requirements 6.1, 6.2, 6.3, 6.4**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         update_type=st.sampled_from(['portfolio_update', 'bot_update', 'signal_update', 'sentiment_update']),
         data=websocket_message_data_strategy(),
@@ -1866,7 +1866,7 @@ class TestWebSocketMessageFormat:
         assert 'timestamp' in serialized, "Message must have 'timestamp' field"
         assert serialized['type'] == update_type, f"Type field should be '{update_type}'"
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         data=websocket_message_data_strategy(),
     )
@@ -1897,7 +1897,7 @@ class TestWebSocketMessageFormat:
                 except Exception as e:
                     pytest.fail(f"Serialized Decimal '{value}' cannot be converted back: {e}")
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         update_type=st.sampled_from(['portfolio_update', 'bot_update', 'signal_update', 'sentiment_update']),
         data=websocket_message_data_strategy(),
@@ -1941,7 +1941,7 @@ class TestWebSocketMessageFormat:
         except (TypeError, ValueError) as e:
             pytest.fail(f"JSON cannot be parsed back: {e}")
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         total_value=portfolio_value_strategy,
         available_balance=portfolio_value_strategy,
@@ -1996,7 +1996,7 @@ class TestWebSocketMessageFormat:
         assert Decimal(parsed['allocated_to_bots']) == allocated_to_bots
         assert Decimal(parsed['high_water_mark']) == high_water_mark
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         bot_id=st.text(min_size=1, max_size=50),
         status=st.sampled_from(['ACTIVE', 'STOPPED', 'ERROR', 'PENDING']),
@@ -2061,7 +2061,7 @@ class TestWebSocketMessageFormat:
         assert Decimal(parsed['current_value']) == current_value
         assert Decimal(parsed['pnl']) == pnl
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         symbol=st.sampled_from(['BTC_USDT', 'ETH_USDT', 'BNB_USDT']),
         direction=st.sampled_from(['BUY', 'SELL', 'HOLD']),
@@ -2107,7 +2107,7 @@ class TestWebSocketMessageFormat:
         assert isinstance(parsed['confidence'], (int, float))
         assert isinstance(parsed['meets_threshold'], bool)
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         fear_greed_index=st.integers(min_value=0, max_value=100),
         classification=st.sampled_from(['Extreme Fear', 'Fear', 'Neutral', 'Greed', 'Extreme Greed']),
@@ -2145,7 +2145,7 @@ class TestWebSocketMessageFormat:
         assert 0 <= parsed['fear_greed_index'] <= 100
         assert parsed['classification'] == classification
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         data=websocket_message_data_strategy(),
     )

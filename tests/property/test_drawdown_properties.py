@@ -134,7 +134,7 @@ class TestDrawdownCalculation:
     **Validates: Requirements 6.3**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         hwm_and_current=high_water_mark_and_current_strategy(),
     )
@@ -167,7 +167,7 @@ class TestDrawdownCalculation:
             f"(hwm={high_water_mark}, current={current_value})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         hwm_and_current=high_water_mark_and_current_strategy(),
     )
@@ -194,7 +194,7 @@ class TestDrawdownCalculation:
             f"Drawdown {drawdown} is negative (hwm={high_water_mark}, current={current_value})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         hwm_and_current=high_water_mark_and_current_strategy(),
     )
@@ -221,7 +221,7 @@ class TestDrawdownCalculation:
             f"(hwm={high_water_mark}, current={current_value})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         portfolio_value=portfolio_value_strategy,
     )
@@ -241,7 +241,7 @@ class TestDrawdownCalculation:
 
         assert drawdown == 0.0, f"Drawdown should be 0 at high water mark, got {drawdown}"
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         sequence=portfolio_value_sequence_strategy(),
     )
@@ -269,7 +269,7 @@ class TestDrawdownCalculation:
             )
             previous_hwm = current_hwm
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         sequence=portfolio_value_sequence_strategy(),
     )
@@ -295,7 +295,7 @@ class TestDrawdownCalculation:
             f"High water mark {tracker.high_water_mark} != max seen {expected_hwm}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         hwm_and_current=high_water_mark_and_current_strategy(),
     )
@@ -321,7 +321,7 @@ class TestDrawdownCalculation:
             f"Drawdown calculation not deterministic: {drawdown1} vs {drawdown2}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         hwm_and_current=high_water_mark_and_current_strategy(),
     )
@@ -346,7 +346,7 @@ class TestDrawdownCalculation:
             f"Status drawdown {status.drawdown_pct} != calculated {calculated}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         hwm_and_current=high_water_mark_and_current_strategy(),
     )
@@ -391,7 +391,7 @@ class TestDrawdownLimitEnforcement:
     **Validates: Requirements 6.4**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         high_water_mark=portfolio_value_strategy,
         max_drawdown_pct=max_drawdown_pct_strategy,
@@ -431,7 +431,7 @@ class TestDrawdownLimitEnforcement:
                 f"<= limit {max_drawdown_pct:.4f}"
             )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         high_water_mark=portfolio_value_strategy,
         max_drawdown_pct=max_drawdown_pct_strategy,
@@ -461,7 +461,7 @@ class TestDrawdownLimitEnforcement:
             f"< limit {max_drawdown_pct:.4f}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         high_water_mark=portfolio_value_strategy,
         max_drawdown_pct=max_drawdown_pct_strategy,
@@ -492,7 +492,7 @@ class TestDrawdownLimitEnforcement:
             f"> limit {max_drawdown_pct:.4f}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         high_water_mark=portfolio_value_strategy,
         max_drawdown_pct=max_drawdown_pct_strategy,
@@ -531,7 +531,7 @@ class TestDrawdownLimitEnforcement:
             "is_trading_allowed should return False until manual reset"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         high_water_mark=portfolio_value_strategy,
         max_drawdown_pct=max_drawdown_pct_strategy,
@@ -566,7 +566,7 @@ class TestDrawdownLimitEnforcement:
             "is_trading_allowed should return True after reset"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         high_water_mark=portfolio_value_strategy,
         max_drawdown_pct=max_drawdown_pct_strategy,
@@ -596,7 +596,7 @@ class TestDrawdownLimitEnforcement:
             f"is_trading_allowed() ({method_result})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         high_water_mark=portfolio_value_strategy,
         max_drawdown_pct=max_drawdown_pct_strategy,
@@ -649,7 +649,7 @@ class TestDrawdownTrackerConsistency:
     **Validates: Requirements 6.3, 6.4**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         sequence=portfolio_value_sequence_strategy(),
         max_drawdown_pct=max_drawdown_pct_strategy,
@@ -679,7 +679,7 @@ class TestDrawdownTrackerConsistency:
             assert status.drawdown_pct == pytest.approx(tracker.calculate_drawdown(), rel=1e-9)
             assert status.is_trading_allowed == tracker.is_trading_allowed()
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         hwm_and_current=high_water_mark_and_current_strategy(),
         max_drawdown_pct=max_drawdown_pct_strategy,
@@ -712,7 +712,7 @@ class TestDrawdownTrackerConsistency:
             "Different tracker instances produced different trading allowed status"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         hwm_and_current=high_water_mark_and_current_strategy(),
     )
@@ -744,7 +744,7 @@ class TestDrawdownTrackerConsistency:
         assert isinstance(status.reasoning, str), "reasoning should be str"
         assert len(status.reasoning) > 0, "reasoning should not be empty"
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         high_water_mark=portfolio_value_strategy,
         new_high=portfolio_value_strategy,

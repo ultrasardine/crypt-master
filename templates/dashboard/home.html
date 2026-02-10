@@ -321,6 +321,169 @@
         </div>
     </div>
     
+    <!-- Market Context Cards -->
+    <!-- Requirements: 4.3.2, 4.3.3, 4.3.4 - Dashboard context cards for regime, BTC dominance, social sentiment, on-chain -->
+    <div class="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4" id="market-context-cards">
+        <!-- Current Regime Card -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="px-4 py-4">
+                <div class="flex items-center justify-between">
+                    <dt class="text-sm font-medium text-slate-400">Current Regime</dt>
+                    {% if market_context.is_stale %}
+                    <span class="inline-flex items-center gap-1 rounded-full bg-amber-900/50 px-2 py-0.5 text-xs font-medium text-amber-400" title="Data may be stale">
+                        <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Stale
+                    </span>
+                    {% endif %}
+                </div>
+                {% if market_context %}
+                <dd class="market-context-regime mt-2">
+                    <span class="inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold {% if market_context.regime == 'RISK_ON' %}bg-emerald-900/50 text-emerald-400{% elif market_context.regime == 'RISK_OFF' %}bg-red-900/50 text-red-400{% elif market_context.regime == 'RANGE_BOUND' %}bg-slate-600 text-slate-300{% elif market_context.regime == 'TRENDING_UP' %}bg-sky-900/50 text-sky-400{% elif market_context.regime == 'TRENDING_DOWN' %}bg-amber-900/50 text-amber-400{% else %}bg-slate-600 text-slate-400{% endif %}">
+                        {% if market_context.regime == 'RISK_ON' %}
+                        <svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                        Risk On
+                        {% elif market_context.regime == 'RISK_OFF' %}
+                        <svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        Risk Off
+                        {% elif market_context.regime == 'RANGE_BOUND' %}
+                        <svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12m-12 5h12" />
+                        </svg>
+                        Range Bound
+                        {% elif market_context.regime == 'TRENDING_UP' %}
+                        <svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                        </svg>
+                        Trending Up
+                        {% elif market_context.regime == 'TRENDING_DOWN' %}
+                        <svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                        </svg>
+                        Trending Down
+                        {% else %}
+                        <svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Unknown
+                        {% endif %}
+                    </span>
+                </dd>
+                {% else %}
+                <dd class="mt-2 text-sm text-slate-500">No data available</dd>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- BTC Dominance Card -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="px-4 py-4">
+                <dt class="text-sm font-medium text-slate-400">BTC Dominance</dt>
+                {% if market_context and market_context.btc_dominance is not None %}
+                <dd class="market-context-btc-dominance mt-2 text-2xl font-bold text-slate-100">
+                    {{ market_context.btc_dominance|floatformat:1 }}%
+                </dd>
+                <div class="mt-2">
+                    <div class="h-2 w-full overflow-hidden rounded-full bg-slate-700">
+                        <div class="h-full rounded-full bg-amber-500" style="width: {{ market_context.btc_dominance }}%"></div>
+                    </div>
+                </div>
+                {% else %}
+                <dd class="mt-2 text-sm text-slate-500">No data available</dd>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- Social Sentiment Card -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="px-4 py-4">
+                <dt class="text-sm font-medium text-slate-400">Social Sentiment</dt>
+                {% if market_context and market_context.social_sentiment_score is not None %}
+                {% with sentiment_pct=market_context.social_sentiment_score|add:"1"|divisibleby:2 %}
+                <dd class="market-context-social-sentiment mt-2">
+                    <span class="text-2xl font-bold {% if market_context.social_sentiment_score > 0.3 %}text-emerald-400{% elif market_context.social_sentiment_score < -0.3 %}text-red-400{% else %}text-slate-300{% endif %}">
+                        {% if market_context.social_sentiment_score > 0 %}+{% endif %}{{ market_context.social_sentiment_score|floatformat:2 }}
+                    </span>
+                    <span class="ml-2 text-sm text-slate-400">
+                        {% if market_context.social_sentiment_score > 0.3 %}Bullish{% elif market_context.social_sentiment_score < -0.3 %}Bearish{% else %}Neutral{% endif %}
+                    </span>
+                </dd>
+                {% endwith %}
+                <!-- Sentiment gauge -->
+                <div class="mt-2 flex items-center gap-2">
+                    <span class="text-xs text-red-400">-1</span>
+                    <div class="relative h-2 flex-1 overflow-hidden rounded-full bg-gradient-to-r from-red-500 via-slate-500 to-emerald-500">
+                        <div class="absolute top-0 h-full w-1 bg-white shadow-lg" style="left: calc({{ market_context.social_sentiment_score|add:1|divisibleby:2 }}% * 100 - 2px); left: calc(({{ market_context.social_sentiment_score }} + 1) / 2 * 100%)"></div>
+                    </div>
+                    <span class="text-xs text-emerald-400">+1</span>
+                </div>
+                {% else %}
+                <dd class="mt-2 text-sm text-slate-500">No data available</dd>
+                {% endif %}
+            </div>
+        </div>
+        
+        <!-- On-Chain Highlights Card -->
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="px-4 py-4">
+                <dt class="text-sm font-medium text-slate-400">On-Chain Highlights</dt>
+                {% if market_context %}
+                <dd class="market-context-onchain mt-2 space-y-2">
+                    <!-- Whale Activity -->
+                    {% if market_context.whale_tx_count is not None %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-400">Whale Txs</span>
+                        <span class="inline-flex items-center gap-1 text-sm font-medium {% if market_context.whale_activity_level == 'high' %}text-amber-400{% elif market_context.whale_activity_level == 'moderate' %}text-sky-400{% else %}text-slate-300{% endif %}">
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                            {{ market_context.whale_tx_count }}
+                            <span class="text-xs">({{ market_context.whale_activity_level|default:"N/A" }})</span>
+                        </span>
+                    </div>
+                    {% endif %}
+                    
+                    <!-- Exchange Flow -->
+                    {% if market_context.exchange_flow_direction %}
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs text-slate-400">Exchange Flow</span>
+                        <span class="inline-flex items-center gap-1 text-sm font-medium {% if market_context.exchange_flow_direction == 'inflow' %}text-red-400{% elif market_context.exchange_flow_direction == 'outflow' %}text-emerald-400{% else %}text-slate-300{% endif %}">
+                            {% if market_context.exchange_flow_direction == 'inflow' %}
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+                            </svg>
+                            Inflow
+                            {% elif market_context.exchange_flow_direction == 'outflow' %}
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                            </svg>
+                            Outflow
+                            {% else %}
+                            <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12m-12 5h12" />
+                            </svg>
+                            Neutral
+                            {% endif %}
+                        </span>
+                    </div>
+                    {% endif %}
+                    
+                    {% if market_context.whale_tx_count is None and market_context.exchange_flow_direction is None %}
+                    <span class="text-sm text-slate-500">No on-chain data available</span>
+                    {% endif %}
+                </dd>
+                {% else %}
+                <dd class="mt-2 text-sm text-slate-500">No data available</dd>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
     <!-- Performance Charts -->
     <div class="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <!-- Portfolio Value Chart -->

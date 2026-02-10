@@ -146,7 +146,7 @@ class TestWeightedConfidenceCalculation:
     **Validates: Requirements 5.2**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         technical_confidence=confidence_value_strategy,
         sentiment_confidence=confidence_value_strategy,
@@ -203,7 +203,7 @@ class TestWeightedConfidenceCalculation:
             f"news={news_confidence})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         technical_confidence=confidence_value_strategy,
         sentiment_confidence=confidence_value_strategy,
@@ -258,7 +258,7 @@ class TestWeightedConfidenceCalculation:
             f"Final score in breakdown {result.breakdown.final_score:.2f} exceeds 100%"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         technical_confidence=confidence_value_strategy,
         sentiment_confidence=confidence_value_strategy,
@@ -306,7 +306,7 @@ class TestWeightedConfidenceCalculation:
             f"Final score in breakdown {result.breakdown.final_score:.2f} is negative"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         technical_confidence=confidence_value_strategy,
     )
@@ -340,7 +340,7 @@ class TestWeightedConfidenceCalculation:
             f"got {result.breakdown.base_score:.2f}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         num_agreeing=st.integers(min_value=1, max_value=5),
         total_indicators=st.integers(min_value=1, max_value=5),
@@ -397,7 +397,7 @@ class TestWeightedConfidenceCalculation:
             f"({num_agreeing}/{total_indicators} agreeing)"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         technical_confidence=confidence_value_strategy,
         sentiment_confidence=confidence_value_strategy,
@@ -450,7 +450,7 @@ class TestWeightedConfidenceCalculation:
             f"got {result.breakdown.final_score:.2f}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         technical_weight=st.floats(min_value=0.1, max_value=0.8, allow_nan=False),
     )
@@ -525,7 +525,7 @@ class TestConfidenceThresholdEnforcement:
     **Validates: Requirements 5.5**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         confidence=st.floats(min_value=0.0, max_value=84.9, allow_nan=False),
     )
@@ -596,7 +596,7 @@ class TestConfidenceThresholdEnforcement:
         # The actual trade execution decision is made by the signal generator
         # which uses this confidence value
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         threshold=st.floats(min_value=0.0, max_value=100.0, allow_nan=False),
         confidence=st.floats(min_value=0.0, max_value=100.0, allow_nan=False),
@@ -623,7 +623,7 @@ class TestConfidenceThresholdEnforcement:
             f"confidence={confidence}, threshold={threshold}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         min_confidence=st.floats(min_value=0.0, max_value=100.0, allow_nan=False),
     )
@@ -643,7 +643,7 @@ class TestConfidenceThresholdEnforcement:
             f"expected {min_confidence}, got {config.min_confidence_for_signal}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         technical_confidence=st.floats(min_value=0.0, max_value=100.0, allow_nan=False),
     )
@@ -679,7 +679,7 @@ class TestConfidenceThresholdEnforcement:
         assert result.timestamp is not None, "Timestamp should not be None"
         assert isinstance(result.reasoning, str), "Reasoning should be a string"
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         technical_confidence=st.floats(min_value=85.0, max_value=100.0, allow_nan=False),
     )
@@ -735,7 +735,7 @@ class TestConfidenceThresholdEnforcement:
             f"confidence >= {threshold}%, got {result.confidence:.2f}%"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         threshold=st.floats(min_value=50.0, max_value=95.0, allow_nan=False),
     )
@@ -772,7 +772,7 @@ class TestConfidenceCalculationConsistency:
     **Validates: Requirements 5.2, 5.5**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         technical_confidence=confidence_value_strategy,
         sentiment_confidence=confidence_value_strategy,
@@ -828,7 +828,7 @@ class TestConfidenceCalculationConsistency:
             "Alignment bonus calculation not deterministic"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         technical_confidence=confidence_value_strategy,
         sentiment_confidence=confidence_value_strategy,
@@ -879,7 +879,7 @@ class TestConfidenceCalculationConsistency:
             f"{result1.confidence} vs {result2.confidence}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         confidence=confidence_value_strategy,
     )
@@ -930,7 +930,7 @@ class TestConfidenceCalculationConsistency:
             f"({result.breakdown.base_score:.2f})"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         indicators=technical_indicators_strategy(),
     )

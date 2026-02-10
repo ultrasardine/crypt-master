@@ -271,6 +271,34 @@ class DashboardConsumer(AsyncWebsocketConsumer):
         """
         await self.send(text_data=json.dumps(event))
 
+    # -------------------------------------------------------------------------
+    # Market Context Updates
+    # -------------------------------------------------------------------------
+
+    async def market_context_update(self, event: dict[str, Any]) -> None:
+        """
+        Send market context snapshot update to WebSocket.
+
+        Event data:
+            - snapshot_id: MarketContextSnapshot ID
+            - symbol: Trading pair symbol (nullable for global)
+            - regime: Detected regime label
+            - btc_dominance: BTC dominance percentage
+            - social_sentiment_score: Social sentiment polarity (-1.0 to 1.0)
+            - net_exchange_flow: Net exchange flow
+            - whale_tx_count: Whale transaction count
+            - trend_strength_score: Trend strength score (0.0-1.0)
+            - risk_regime_score: Risk regime score (0.0-1.0)
+            - sentiment_regime_score: Sentiment regime score (0.0-1.0)
+            - is_stale: Whether data is stale
+            - is_degraded: Whether data is degraded
+            - timestamp: Snapshot timestamp
+
+        Requirements:
+            - 4.3.2: WebSocket updates for context cards
+        """
+        await self.send(text_data=json.dumps(event))
+
 
 class AnalysisConsumer(AsyncWebsocketConsumer):
     """

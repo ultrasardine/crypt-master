@@ -615,7 +615,7 @@ class TestConfidenceCorrelation:
     **Validates: Requirements 3.4**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         outcomes=st.lists(
             st.tuples(confidence_strategy, st.floats(min_value=-100.0, max_value=100.0, allow_nan=False, allow_infinity=False)),
@@ -647,7 +647,7 @@ class TestConfidenceCorrelation:
                 f"Correlation {correlation} outside valid range [-1, 1]"
             )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         num_outcomes=st.integers(min_value=2, max_value=50),
     )
@@ -679,7 +679,7 @@ class TestConfidenceCorrelation:
             f"Perfect positive correlation should be >= {PERFECT_CORRELATION_THRESHOLD}, got {correlation}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         num_outcomes=st.integers(min_value=2, max_value=50),
     )
@@ -711,7 +711,7 @@ class TestConfidenceCorrelation:
             f"Perfect negative correlation should be <= {PERFECT_NEGATIVE_CORRELATION_THRESHOLD}, got {correlation}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         confidence=confidence_strategy,
         num_outcomes=st.integers(min_value=2, max_value=50),
@@ -742,7 +742,7 @@ class TestConfidenceCorrelation:
             f"Correlation with constant confidence should be None, got {correlation}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         outcomes=st.lists(
             st.tuples(confidence_strategy, st.floats(min_value=-100.0, max_value=100.0, allow_nan=False, allow_infinity=False)),

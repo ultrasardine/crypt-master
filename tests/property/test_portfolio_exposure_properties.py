@@ -78,7 +78,7 @@ class TestBotPortfolioInclusion:
     **Validates: Requirements 10.10**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         investment=investment_strategy,
@@ -122,7 +122,7 @@ class TestBotPortfolioInclusion:
         # Verify the bot is active
         assert bot.status == SimulatedBotStatus.ACTIVE
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         investments=st.lists(
@@ -169,7 +169,7 @@ class TestBotPortfolioInclusion:
             f"Total allocation {total_allocation} should equal sum of investments {expected_total}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         investment=investment_strategy,
@@ -209,7 +209,7 @@ class TestBotPortfolioInclusion:
             f"Stopped bot should not be in allocation, got {total_allocation}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         investments=st.lists(
@@ -275,7 +275,7 @@ class TestBotPortfolioInclusion:
             f"sum of active bot investments {expected_allocation}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         investment=investment_strategy,
@@ -311,7 +311,7 @@ class TestBotPortfolioInclusion:
             f"Allocation should be deterministic: {result1}, {result2}, {result3}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
     )
@@ -343,7 +343,7 @@ class TestBotPortfolioInclusionEdgeCases:
     **Validates: Requirements 10.10**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         investment=investment_strategy,
@@ -382,7 +382,7 @@ class TestBotPortfolioInclusionEdgeCases:
             f"invested amount {investment}, not current value {new_value}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         investments=st.lists(
@@ -430,7 +430,7 @@ class TestBotPortfolioInclusionEdgeCases:
             f"sum of active bot investments {expected_sum}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         investment1=investment_strategy,

@@ -6,7 +6,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import TemplateView
 
 from apps.bots.models import Bot
-from apps.core.models import MarketSentimentData, PortfolioSnapshot
+from apps.core.models import MarketContextSnapshot, MarketSentimentData, PortfolioSnapshot
 from apps.trading.models import Signal, SignalAccuracyMetrics, Trade
 
 
@@ -70,6 +70,10 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
         # Market sentiment data
         context["market_sentiment"] = self._get_market_sentiment()
 
+        # Market context snapshot (regime, BTC dominance, social sentiment, on-chain)
+        # Requirements: 4.3.1 - Include latest MarketContextSnapshot in context
+        context["market_context"] = self._get_market_context()
+
         # Signal accuracy metrics
         context["signal_accuracy"] = self._get_signal_accuracy(user)
 
@@ -95,6 +99,56 @@ class DashboardHomeView(LoginRequiredMixin, TemplateView):
         Requirements: 4.8, 4.9, 4.10
         """
         return MarketSentimentData.get_latest()
+
+    def _get_market_context(self) -> dict | None:
+        """
+        Get latest market context snapshot data for dashboard cards.
+
+        Returns:
+            Dictionary with market context data or None if no data available.
+
+        Requirements: 4.3.1 - Include latest MarketContextSnapshot in context
+        """
+        snapshot = MarketContextSnapshot.objects.order_by("-timestamp").first()
+        if not snapshot:
+            return None
+
+        # Determine exchange flow direction for on-chain highlights
+        exchange_flow_direction = None
+        if snapshot.net_exchange_flow is not None:
+            if snapshot.net_exchange_flow > 0:
+                exchange_flow_direction = "inflow"
+            elif snapshot.net_exchange_flow < 0:
+                exchange_flow_direction = "outflow"
+            else:
+                exchange_flow_direction = "neutral"
+
+        # Determine whale activity level
+        whale_activity_level = None
+        if snapshot.whale_tx_count is not None:
+            if snapshot.whale_tx_count >= 100:
+                whale_activity_level = "high"
+            elif snapshot.whale_tx_count >= 50:
+                whale_activity_level = "moderate"
+            else:
+                whale_activity_level = "low"
+
+        return {
+            "regime": snapshot.regime,
+            "btc_dominance": snapshot.btc_dominance,
+            "social_sentiment_score": snapshot.social_sentiment_score,
+            "social_buzz_score": snapshot.social_buzz_score,
+            "net_exchange_flow": snapshot.net_exchange_flow,
+            "exchange_flow_direction": exchange_flow_direction,
+            "whale_tx_count": snapshot.whale_tx_count,
+            "whale_activity_level": whale_activity_level,
+            "trend_strength_score": snapshot.trend_strength_score,
+            "risk_regime_score": snapshot.risk_regime_score,
+            "sentiment_regime_score": snapshot.sentiment_regime_score,
+            "is_stale": snapshot.is_stale,
+            "is_degraded": snapshot.is_degraded,
+            "timestamp": snapshot.timestamp,
+        }
 
     def _get_signal_accuracy(self, user) -> dict:
         """

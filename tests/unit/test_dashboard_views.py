@@ -7,7 +7,7 @@ from django.test import RequestFactory
 from django.utils import timezone
 
 from apps.bots.models import Bot
-from apps.core.models import MarketSentimentData, PortfolioSnapshot, TradingPair
+from apps.core.models import MarketContextSnapshot, MarketSentimentData, PortfolioSnapshot, TradingPair
 from apps.dashboard.views import DashboardHomeView
 from apps.trading.models import SignalAccuracyMetrics
 
@@ -221,3 +221,162 @@ class TestDashboardHomeView:
         
         assert len(portfolio_data) == 1
         assert len(bot_data) == 1
+
+
+    def test_get_market_context_returns_latest_snapshot(self, view):
+        """Test _get_market_context returns latest MarketContextSnapshot data.
+        
+        Requirements: 4.3.1 - Include latest MarketContextSnapshot in context
+        """
+        # Create market context snapshot
+        snapshot = MarketContextSnapshot.objects.create(
+            symbol=None,
+            timestamp=timezone.now(),
+            regime="RISK_ON",
+            btc_dominance=45.5,
+            social_sentiment_score=0.35,
+            social_buzz_score=0.7,
+            net_exchange_flow=-1000.0,
+            whale_tx_count=75,
+            trend_strength_score=0.65,
+            risk_regime_score=0.7,
+            sentiment_regime_score=0.6,
+            is_stale=False,
+            is_degraded=False,
+        )
+
+        result = view._get_market_context()
+
+        assert result is not None
+        assert result["regime"] == "RISK_ON"
+        assert result["btc_dominance"] == 45.5
+        assert result["social_sentiment_score"] == 0.35
+        assert result["net_exchange_flow"] == -1000.0
+        assert result["whale_tx_count"] == 75
+        assert result["exchange_flow_direction"] == "outflow"
+        assert result["whale_activity_level"] == "moderate"
+        assert result["is_stale"] is False
+
+    def test_get_market_context_returns_none_when_no_data(self, view):
+        """Test _get_market_context returns None when no snapshot exists."""
+        # Clean up any existing snapshots from other tests
+        MarketContextSnapshot.objects.all().delete()
+        result = view._get_market_context()
+        assert result is None
+
+    def test_get_market_context_exchange_flow_inflow(self, view):
+        """Test _get_market_context correctly identifies inflow direction."""
+        MarketContextSnapshot.objects.create(
+            symbol=None,
+            timestamp=timezone.now(),
+            net_exchange_flow=5000.0,  # Positive = inflow
+            is_stale=False,
+        )
+
+        result = view._get_market_context()
+
+        assert result["exchange_flow_direction"] == "inflow"
+
+    def test_get_market_context_exchange_flow_neutral(self, view):
+        """Test _get_market_context correctly identifies neutral flow."""
+        MarketContextSnapshot.objects.create(
+            symbol=None,
+            timestamp=timezone.now(),
+            net_exchange_flow=0.0,  # Zero = neutral
+            is_stale=False,
+        )
+
+        result = view._get_market_context()
+
+        assert result["exchange_flow_direction"] == "neutral"
+
+    def test_get_market_context_whale_activity_high(self, view):
+        """Test _get_market_context correctly identifies high whale activity."""
+        MarketContextSnapshot.objects.create(
+            symbol=None,
+            timestamp=timezone.now(),
+            whale_tx_count=150,  # >= 100 = high
+            is_stale=False,
+        )
+
+        result = view._get_market_context()
+
+        assert result["whale_activity_level"] == "high"
+
+    def test_get_market_context_whale_activity_low(self, view):
+        """Test _get_market_context correctly identifies low whale activity."""
+        MarketContextSnapshot.objects.create(
+            symbol=None,
+            timestamp=timezone.now(),
+            whale_tx_count=25,  # < 50 = low
+            is_stale=False,
+        )
+
+        result = view._get_market_context()
+
+        assert result["whale_activity_level"] == "low"
+
+    def test_get_market_context_stale_indicator(self, view):
+        """Test _get_market_context includes stale indicator.
+        
+        Requirements: 4.3.4 - Display stale indicator if snapshot is marked is_stale=True
+        """
+        MarketContextSnapshot.objects.create(
+            symbol=None,
+            timestamp=timezone.now(),
+            regime="UNKNOWN",
+            is_stale=True,
+            is_degraded=True,
+        )
+
+        result = view._get_market_context()
+
+        assert result["is_stale"] is True
+        assert result["is_degraded"] is True
+
+    def test_get_context_data_includes_market_context(self, user, trading_pair):
+        """Test get_context_data includes market_context key.
+        
+        Requirements: 4.3.1 - Include latest MarketContextSnapshot in context
+        """
+        # Create market context snapshot
+        MarketContextSnapshot.objects.create(
+            symbol=None,
+            timestamp=timezone.now(),
+            regime="TRENDING_UP",
+            btc_dominance=48.0,
+            social_sentiment_score=0.5,
+            net_exchange_flow=-500.0,
+            whale_tx_count=80,
+            is_stale=False,
+        )
+
+        # Create required portfolio snapshot for the view
+        PortfolioSnapshot.objects.create(
+            user=user,
+            total_value=Decimal("10000.00"),
+            available_balance=Decimal("5000.00"),
+            allocated_to_bots=Decimal("5000.00"),
+            drawdown=0.0,
+            high_water_mark=Decimal("10000.00"),
+            is_simulated=False,
+        )
+
+        # Create view and request
+        factory = RequestFactory()
+        request = factory.get("/dashboard/")
+        request.user = user
+
+        view = DashboardHomeView()
+        view.request = request
+        view.setup(request)
+
+        context = view.get_context_data()
+
+        # Verify market_context is in context
+        assert "market_context" in context
+        assert context["market_context"] is not None
+        assert context["market_context"]["regime"] == "TRENDING_UP"
+        assert context["market_context"]["btc_dominance"] == 48.0
+        assert context["market_context"]["exchange_flow_direction"] == "outflow"
+        assert context["market_context"]["whale_activity_level"] == "moderate"

@@ -651,3 +651,260 @@ class TestNewsTechnicalConflictDetection:
         conflict = agent._detect_news_technical_conflict(technical_scores, news_score)
 
         assert conflict is False
+
+
+
+class TestContextIntegration:
+    """Tests for context scoring integration in MarketAnalysisAgent."""
+
+    @pytest.fixture
+    def agent(self, mock_settings):
+        """Create a MarketAnalysisAgent for testing."""
+        from agents.market_agent import AgentConfig, MarketAnalysisAgent
+
+        with patch("agents.market_agent.settings", mock_settings):
+            config = AgentConfig()
+            return MarketAnalysisAgent(config=config)
+
+    @pytest.fixture
+    def mock_snapshot(self):
+        """Create a mock MarketContextSnapshot."""
+        snapshot = MagicMock()
+        snapshot.symbol = "BTC_USDT"
+        snapshot.timestamp = datetime.now(tz=UTC)
+        snapshot.btc_dominance = 45.0
+        snapshot.fear_greed_index = 65
+        snapshot.social_sentiment_score = 0.4
+        snapshot.social_buzz_score = 50.0
+        snapshot.social_mention_count = 1000
+        snapshot.active_addresses = 500000
+        snapshot.net_exchange_flow = -100.0
+        snapshot.defi_tvl = 50000000000
+        snapshot.is_stale = False
+        snapshot.stale_fields = []
+        return snapshot
+
+    @pytest.mark.asyncio
+    async def test_get_context_scores_with_snapshot(self, agent, mock_snapshot):
+        """_get_context_scores should return ContextScores when snapshot available."""
+        from lib.analysis.context import ContextScores, Regime
+
+        # Create sample technical scores
+        technical_scores = [
+            IndicatorScore("RSI", SignalDirection.BUY, 80.0, 0.2, 35.0, False),
+            IndicatorScore("MACD", SignalDirection.BUY, 75.0, 0.2, 0.5, False),
+            IndicatorScore("ADX", SignalDirection.BUY, 70.0, 0.15, 30.0, False),
+            IndicatorScore("VOL", SignalDirection.BUY, 65.0, 0.15, 1.5, False),
+        ]
+
+        # Mock sync_to_async to return the snapshot directly
+        with patch("asgiref.sync.sync_to_async") as mock_sync:
+            mock_sync.return_value = AsyncMock(return_value=mock_snapshot)
+
+            context_scores = await agent._get_context_scores("BTC_USDT", technical_scores)
+
+            assert context_scores is not None
+            assert isinstance(context_scores, ContextScores)
+            assert isinstance(context_scores.regime, Regime)
+            assert 0.0 <= context_scores.trend_strength_score <= 1.0
+            assert 0.0 <= context_scores.risk_regime_score <= 1.0
+            assert 0.0 <= context_scores.sentiment_regime_score <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_get_context_scores_without_snapshot(self, agent):
+        """_get_context_scores should return None when no snapshot available."""
+        technical_scores = [
+            IndicatorScore("RSI", SignalDirection.BUY, 80.0, 0.2, 35.0, False),
+        ]
+
+        # Mock sync_to_async to return None
+        with patch("asgiref.sync.sync_to_async") as mock_sync:
+            mock_sync.return_value = AsyncMock(return_value=None)
+
+            context_scores = await agent._get_context_scores("BTC_USDT", technical_scores)
+
+            assert context_scores is None
+
+    @pytest.mark.asyncio
+    async def test_get_context_scores_handles_exception(self, agent):
+        """_get_context_scores should return None on exception."""
+        # Mock the database query to raise an exception
+        with patch("asgiref.sync.sync_to_async") as mock_sync:
+            mock_sync.return_value = AsyncMock(side_effect=Exception("Database error"))
+
+            technical_scores = [
+                IndicatorScore("RSI", SignalDirection.BUY, 80.0, 0.2, 35.0, False),
+            ]
+
+            context_scores = await agent._get_context_scores("BTC_USDT", technical_scores)
+
+            assert context_scores is None
+
+    def test_build_technical_summary(self, agent):
+        """_build_technical_summary should create dict from technical scores."""
+        technical_scores = [
+            IndicatorScore("RSI", SignalDirection.BUY, 80.0, 0.2, 35.0, False),
+            IndicatorScore("MACD", SignalDirection.BUY, 75.0, 0.2, 0.5, False),
+            IndicatorScore("ADX", SignalDirection.BUY, 70.0, 0.15, 30.0, False),
+            IndicatorScore("VOL", SignalDirection.BUY, 65.0, 0.15, 1.5, False),
+            IndicatorScore("BB", SignalDirection.BUY, 60.0, 0.15, 100.0, False),
+            IndicatorScore("STOCH", SignalDirection.BUY, 55.0, 0.15, 20.0, False),
+        ]
+
+        summary = agent._build_technical_summary(technical_scores)
+
+        assert "rsi" in summary
+        assert summary["rsi"] == 35.0
+        assert "macd_histogram" in summary
+        assert summary["macd_histogram"] == 0.5
+        assert "adx" in summary
+        assert summary["adx"] == 30.0
+        assert "volume_ratio" in summary
+        assert summary["volume_ratio"] == 1.5
+
+    def test_build_technical_summary_handles_none_values(self, agent):
+        """_build_technical_summary should skip None values."""
+        technical_scores = [
+            IndicatorScore("RSI", SignalDirection.BUY, 80.0, 0.2, None, False),
+            IndicatorScore("MACD", SignalDirection.BUY, 75.0, 0.2, 0.5, False),
+        ]
+
+        summary = agent._build_technical_summary(technical_scores)
+
+        assert "rsi" not in summary
+        assert "macd_histogram" in summary
+        assert summary["macd_histogram"] == 0.5
+
+    @pytest.mark.asyncio
+    async def test_analyze_symbol_with_context(self, agent, mock_snapshot):
+        """analyze_symbol should include context scores when available."""
+        from lib.analysis.context import ContextScores, Regime
+
+        # Mock Pionex client
+        mock_client = AsyncMock()
+        mock_candle = MagicMock()
+        mock_candle.close = 100.0
+        mock_candle.high = 101.0
+        mock_candle.low = 99.0
+        mock_candle.volume = 1000.0
+        mock_client.get_candles.return_value = [mock_candle] * 100
+        agent._pionex_client = mock_client
+        agent._owns_pionex = False
+
+        # Mock context scores
+        mock_context = ContextScores(
+            trend_strength_score=0.7,
+            risk_regime_score=0.6,
+            sentiment_regime_score=0.5,
+            regime=Regime.RISK_ON,
+            is_degraded=False,
+        )
+
+        with patch.object(agent, "_get_context_scores", return_value=mock_context):
+            signal = await agent.analyze_symbol("BTC_USDT")
+
+            assert signal is not None
+            # Context should be passed to signal generator
+            # We can verify this by checking the reasoning includes regime info
+
+    @pytest.mark.asyncio
+    async def test_analyze_symbol_without_context_fallback(self, agent):
+        """analyze_symbol should work without context (backward compatible)."""
+        # Mock Pionex client
+        mock_client = AsyncMock()
+        mock_candle = MagicMock()
+        mock_candle.close = 100.0
+        mock_candle.high = 101.0
+        mock_candle.low = 99.0
+        mock_candle.volume = 1000.0
+        mock_client.get_candles.return_value = [mock_candle] * 100
+        agent._pionex_client = mock_client
+        agent._owns_pionex = False
+
+        # Mock context scores to return None
+        with patch.object(agent, "_get_context_scores", return_value=None):
+            signal = await agent.analyze_symbol("BTC_USDT")
+
+            assert signal is not None
+            # Signal should still be generated without context
+
+
+class TestSignalGeneratorContextIntegration:
+    """Tests for SignalGenerator context parameter integration."""
+
+    @pytest.fixture
+    def generator(self):
+        """Create a SignalGenerator for testing."""
+        from lib.analysis.signal import SignalGenerator, SignalGeneratorConfig
+
+        config = SignalGeneratorConfig(min_confidence_threshold=85.0)
+        return SignalGenerator(config=config)
+
+    def test_generate_signal_with_context(self, generator):
+        """generate_signal should accept context parameter."""
+        from lib.analysis.context import ContextScores, Regime
+
+        technical_scores = [
+            IndicatorScore("RSI", SignalDirection.BUY, 90.0, 0.3, 30.0, False),
+            IndicatorScore("MACD", SignalDirection.BUY, 85.0, 0.3, 0.5, False),
+        ]
+
+        context = ContextScores(
+            trend_strength_score=0.7,
+            risk_regime_score=0.6,
+            sentiment_regime_score=0.5,
+            regime=Regime.RISK_ON,
+            is_degraded=False,
+        )
+
+        signal = generator.generate_signal(
+            symbol="BTC_USDT",
+            technical_scores=technical_scores,
+            context=context,
+        )
+
+        assert signal is not None
+        assert "RISK_ON" in signal.reasoning
+        assert "Trend strength: 0.70" in signal.reasoning
+
+    def test_generate_signal_without_context(self, generator):
+        """generate_signal should work without context (backward compatible)."""
+        technical_scores = [
+            IndicatorScore("RSI", SignalDirection.BUY, 90.0, 0.3, 30.0, False),
+            IndicatorScore("MACD", SignalDirection.BUY, 85.0, 0.3, 0.5, False),
+        ]
+
+        signal = generator.generate_signal(
+            symbol="BTC_USDT",
+            technical_scores=technical_scores,
+            context=None,
+        )
+
+        assert signal is not None
+        assert "regime" not in signal.reasoning.lower() or "Market regime" not in signal.reasoning
+
+    def test_generate_signal_with_degraded_context(self, generator):
+        """generate_signal should note degraded context in reasoning."""
+        from lib.analysis.context import ContextScores, Regime
+
+        technical_scores = [
+            IndicatorScore("RSI", SignalDirection.BUY, 90.0, 0.3, 30.0, False),
+            IndicatorScore("MACD", SignalDirection.BUY, 85.0, 0.3, 0.5, False),
+        ]
+
+        context = ContextScores(
+            trend_strength_score=0.7,
+            risk_regime_score=0.6,
+            sentiment_regime_score=0.5,
+            regime=Regime.UNKNOWN,
+            is_degraded=True,
+        )
+
+        signal = generator.generate_signal(
+            symbol="BTC_USDT",
+            technical_scores=technical_scores,
+            context=context,
+        )
+
+        assert signal is not None
+        assert "degraded" in signal.reasoning.lower()

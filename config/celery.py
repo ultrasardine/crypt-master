@@ -36,6 +36,16 @@ app.conf.beat_schedule = {
         "task": "apps.core.tasks.fetch_public_market_data",
         "schedule": 3600.0,  # Every 1 hour
     },
+    # Market Intelligence Layer Tasks
+    "fetch-external-market-data": {
+        "task": "apps.core.tasks.fetch_external_market_data",
+        "schedule": float(os.getenv("EXTERNAL_DATA_SYNC_INTERVAL", "900")),  # Every 15 minutes (default)
+    },
+    "run-pattern-miner": {
+        "task": "apps.core.tasks.run_pattern_miner",
+        "schedule": float(os.getenv("PATTERN_MINER_INTERVAL", "604800")),  # Weekly (default: 7 days)
+    },
+    # Analysis Tasks
     "update-signal-accuracy": {
         "task": "apps.trading.tasks.update_signal_accuracy",
         "schedule": 3600.0,  # Every 1 hour

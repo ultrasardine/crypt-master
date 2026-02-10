@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+
+{% block title %}Signal Quality - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">
+            Signal Quality
+            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Analyze signal performance by market regime and indicator combinations to understand which conditions produce the best trading signals.</span>
+            </span>
+        </h1>
+        <p class="mt-2 text-sm text-slate-400">Analyze signal performance by regime and indicator combination.</p>
+    </div>
+
+    <!-- Analysis Sub-Navigation -->
+    <nav class="mb-6 flex flex-wrap gap-2 border-b border-slate-700 pb-4" aria-label="Analysis navigation">
+        <a href="{% url 'analysis:analysis' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Indicators</a>
+        <a href="{% url 'analysis:market_intelligence' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Market Intelligence</a>
+        <a href="{% url 'analysis:regimes' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Regime Detector</a>
+        <a href="{% url 'analysis:signal_quality' %}" class="rounded-lg px-3 py-2 text-sm font-medium bg-indigo-600 text-white">Signal Quality</a>
+        <a href="{% url 'analysis:backtest' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Backtest</a>
+    </nav>
+
+    <!-- Filters -->
+    <form method="get" class="mb-6">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div>
+                <label for="days" class="block text-sm font-medium text-slate-300">Time Range</label>
+                <select name="days" id="days" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                    {% for option in time_range_options %}
+                    <option value="{{ option.value }}" {% if selected_days == option.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="symbol" class="block text-sm font-medium text-slate-300">Symbol</label>
+                <select name="symbol" id="symbol" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                    <option value="">All Symbols</option>
+                    {% for pair in trading_pairs %}
+                    <option value="{{ pair.symbol }}" {% if selected_symbol == pair.symbol %}selected{% endif %}>{{ pair.symbol }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label for="regime" class="block text-sm font-medium text-slate-300">Regime</label>
+                <select name="regime" id="regime" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                    <option value="">All Regimes</option>
+                    {% for option in regime_options %}
+                    <option value="{{ option.value }}" {% if selected_regime == option.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button type="submit" class="w-full rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                    Apply Filters
+                </button>
+            </div>
+        </div>
+    </form>
+
+    <!-- Summary Stats Cards -->
+    <div class="mb-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 p-4">
+            <div class="text-sm font-medium text-slate-400">Total Signals</div>
+            <div class="mt-1 text-2xl font-bold text-slate-100">{{ summary_stats.total_signals }}</div>
+        </div>
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 p-4">
+            <div class="text-sm font-medium text-slate-400">Win Rate</div>
+            <div class="mt-1 text-2xl font-bold {% if summary_stats.overall_win_rate >= 50 %}text-emerald-400{% else %}text-red-400{% endif %}">{{ summary_stats.overall_win_rate }}%</div>
+        </div>
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 p-4">
+            <div class="text-sm font-medium text-slate-400">Avg P&L</div>
+            <div class="mt-1 text-2xl font-bold {% if summary_stats.overall_avg_pnl >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">{{ summary_stats.overall_avg_pnl }}%</div>
+        </div>
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 p-4">
+            <div class="text-sm font-medium text-slate-400">Profitable</div>
+            <div class="mt-1 text-2xl font-bold text-emerald-400">{{ summary_stats.profitable_signals }}</div>
+        </div>
+    </div>
+
+    {% if regime_performance %}
+    <!-- Performance by Regime -->
+    <div class="mb-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">Performance by Regime</h2>
+            <p class="mt-1 text-sm text-slate-400">Signal performance grouped by market regime</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-700">
+                <thead class="bg-slate-700/50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Regime</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Win Rate</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Avg P&L</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Total Signals</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Avg Confidence</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    {% for perf in regime_performance %}
+                    <tr class="transition-colors hover:bg-slate-700/50">
+                        <td class="whitespace-nowrap px-4 py-4 text-sm">
+                            <span class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold {{ perf.colors.bg }} {{ perf.colors.text }}">
+                                <span class="h-2 w-2 rounded-full {{ perf.colors.dot }}"></span>
+                                {{ perf.regime_display }}
+                            </span>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm {% if perf.win_rate >= 50 %}text-emerald-400{% else %}text-red-400{% endif %}">
+                            {{ perf.win_rate }}%
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm {% if perf.avg_pnl >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">
+                            {{ perf.avg_pnl }}%
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-300">
+                            {{ perf.total_signals }}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-300">
+                            {{ perf.avg_confidence }}%
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if indicator_performance %}
+    <!-- Performance by Indicator Combination -->
+    <div class="mb-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">Performance by Indicator Combination</h2>
+            <p class="mt-1 text-sm text-slate-400">Signal performance grouped by indicator states</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-700">
+                <thead class="bg-slate-700/50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Indicator Combination</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Win Rate</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Avg P&L</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Signals</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    {% for perf in indicator_performance %}
+                    <tr class="transition-colors hover:bg-slate-700/50">
+                        <td class="px-4 py-4 text-sm text-slate-300">
+                            {{ perf.combination }}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm {% if perf.win_rate >= 50 %}text-emerald-400{% else %}text-red-400{% endif %}">
+                            {{ perf.win_rate }}%
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm {% if perf.avg_pnl >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">
+                            {{ perf.avg_pnl }}%
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-300">
+                            {{ perf.total_signals }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if strategy_patterns %}
+    <!-- Active Strategy Patterns -->
+    <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">Active Strategy Patterns</h2>
+            <p class="mt-1 text-sm text-slate-400">Discovered winning patterns from historical analysis</p>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-700">
+                <thead class="bg-slate-700/50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Pattern</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Hit Rate</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Avg P&L</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Sample Size</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Discovered</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    {% for pattern in strategy_patterns %}
+                    <tr class="transition-colors hover:bg-slate-700/50">
+                        <td class="px-4 py-4 text-sm">
+                            <div class="flex items-center gap-2">
+                                {% if pattern.regime %}
+                                {% with colors=all_regime_colors|default_if_none:"" %}
+                                <span class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium bg-slate-600 text-slate-300">
+                                    {{ pattern.regime }}
+                                </span>
+                                {% endwith %}
+                                {% endif %}
+                                <span class="text-slate-300 text-xs">
+                                    {% for key, value in pattern.feature_combination.items %}
+                                    {% if key != 'regime' %}
+                                    {{ key }}: {{ value }}{% if not forloop.last %}, {% endif %}
+                                    {% endif %}
+                                    {% endfor %}
+                                </span>
+                            </div>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm {% if pattern.hit_rate >= 0.5 %}text-emerald-400{% else %}text-red-400{% endif %}">
+                            {{ pattern.hit_rate|floatformat:1 }}%
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm {% if pattern.average_pnl >= 0 %}text-emerald-400{% else %}text-red-400{% endif %}">
+                            {{ pattern.average_pnl|floatformat:2 }}%
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-300">
+                            {{ pattern.sample_size }}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-400">
+                            {{ pattern.discovered_at|date:"M d, Y" }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not regime_performance and not indicator_performance and not strategy_patterns %}
+    <!-- No Data State -->
+    <div class="rounded-lg border border-amber-500/50 bg-amber-900/20 p-6 text-center">
+        <svg class="mx-auto h-12 w-12 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+        </svg>
+        <h3 class="mt-4 text-lg font-medium text-amber-400">No Signal Quality Data Available</h3>
+        <p class="mt-2 text-sm text-slate-400">Signal outcomes have not been recorded yet. Execute some signals and record their outcomes to see performance analysis.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

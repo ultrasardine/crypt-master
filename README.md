@@ -29,11 +29,16 @@ Crypt Master is a fully automated cryptocurrency trading system that integrates 
 
 - **Multi-Tenant Architecture**: Complete user data isolation with per-user encrypted API keys
 - **Multi-factor Market Analysis**: Technical indicators (RSI, MACD, Bollinger Bands, ADX, Stochastic), sentiment analysis, and volume anomaly detection
+- **Market Intelligence Layer**: Context-aware signal generation using external market data (BTC dominance, on-chain metrics, social sentiment) with regime classification (RISK_ON, RISK_OFF, TRENDING_UP, TRENDING_DOWN, RANGE_BOUND)
+- **External Market Intelligence**: Pluggable data sources for market aggregators (CoinGecko/CoinMarketCap), on-chain metrics (Glassnode/IntoTheBlock), and social sentiment (LunarCrush/Santiment)
+- **Context Scoring & Regime Detection**: Composite scores for trend strength, risk regime, and sentiment regime with automatic market regime classification
+- **Strategy Pattern Discovery**: Weekly analysis of historical signal outcomes to discover winning indicator/context combinations
 - **Public Market Data Integration**: Fear & Greed Index, funding rates, open interest, and liquidation data from public APIs
-- **Automated Bot Management**: Create, monitor, and stop Grid, DCA, and Infinity Grid bots based on market signals
-- **Risk Management**: Kelly Criterion position sizing, drawdown limits, per-trade risk limits, and automatic bot stopping
+- **Automated Bot Management**: Create, monitor, and stop Grid, DCA, and Infinity Grid bots based on market signals and regime
+- **Risk Management**: Kelly Criterion position sizing, drawdown limits, per-trade risk limits, regime-adjusted confidence thresholds, and automatic bot stopping
 - **Dry-Run Mode**: Test strategies safely without executing real trades
-- **Real-Time Dashboard**: WebSocket-powered live updates for signals, bot status, performance metrics, and market sentiment
+- **Real-Time Dashboard**: WebSocket-powered live updates for signals, bot status, performance metrics, market sentiment, and market context
+- **Research UI**: Market intelligence dashboard, regime detector, and signal quality analysis for understanding market conditions and signal performance
 - **Backtesting**: Test strategies against historical data before deploying
 
 ---
@@ -135,6 +140,11 @@ crypt-master/
 │   ├── risk/              # Risk management
 │   ├── simulation/        # Dry-run simulator
 │   ├── sync/              # External data synchronization services
+│   │   ├── external_sources/  # External market intelligence data providers
+│   │   │   ├── __init__.py    # ExternalMetrics protocol & dataclass
+│   │   │   ├── cmc_client.py  # CoinGecko/CoinMarketCap market data
+│   │   │   ├── onchain_client.py    # Glassnode/IntoTheBlock on-chain metrics
+│   │   │   └── social_sentiment_client.py  # Social sentiment (planned)
 │   │   ├── portfolio.py   # Portfolio balance sync from Pionex
 │   │   ├── bots.py        # Bot status and P&L sync
 │   │   └── public_data.py # Public market data (Fear & Greed, funding rates)
@@ -159,16 +169,22 @@ crypt-master/
 ### Data Flow
 
 1. **Market Agent** fetches price data from Pionex API every 60 seconds
-2. **Public Data Service** fetches market sentiment data (Fear & Greed Index, funding rates, open interest) from public APIs every hour
-3. **Portfolio Sync Service** fetches account balances from Pionex every 5 minutes and creates portfolio snapshots
-4. **Bot Sync Service** fetches bot status and P&L from Pionex every 2 minutes and updates local records
-5. **Technical Analysis** calculates indicators (RSI, MACD, BB, etc.)
-6. **Signal Generator** produces BUY/SELL/HOLD signals with confidence scores
-7. **Signal Accuracy Tracker** records outcomes when bots stop and calculates accuracy metrics
-8. **Signals** are published to Redis and stored in PostgreSQL
-9. **Bot Agent** subscribes to signals and evaluates bot actions
-10. **Risk Manager** validates all bot operations against limits
-11. **Dashboard** receives real-time updates via WebSocket including portfolio data, bot performance, signal accuracy, and market sentiment
+2. **Market Data Hub** (Celery task) fetches external market intelligence every 15 minutes:
+   - Global market data (BTC dominance, market cap, volume) from CoinGecko/CoinMarketCap
+   - On-chain metrics (active addresses, exchange flow, whale transactions, DeFi TVL) from Glassnode/IntoTheBlock
+   - Social sentiment (sentiment polarity, mention count, buzz score) from LunarCrush/Santiment
+   - Creates `MarketContextSnapshot` records with regime classification
+3. **Public Data Service** fetches market sentiment data (Fear & Greed Index, funding rates, open interest) from public APIs every hour
+4. **Portfolio Sync Service** fetches account balances from Pionex every 5 minutes and creates portfolio snapshots
+5. **Bot Sync Service** fetches bot status and P&L from Pionex every 2 minutes and updates local records
+6. **Technical Analysis** calculates indicators (RSI, MACD, BB, etc.)
+7. **Context Scorer** computes context scores (trend strength, risk regime, sentiment regime) from latest `MarketContextSnapshot` and technical indicators
+8. **Signal Generator** produces BUY/SELL/HOLD signals with confidence scores, incorporating context scores for regime-aware trading
+9. **Signal Accuracy Tracker** records outcomes when bots stop and calculates accuracy metrics
+10. **Signals** are published to Redis and stored in PostgreSQL
+11. **Bot Agent** subscribes to signals and evaluates bot actions
+12. **Risk Manager** validates all bot operations against limits
+13. **Dashboard** receives real-time updates via WebSocket including portfolio data, bot performance, signal accuracy, market sentiment, and market context
 
 ---
 
@@ -368,6 +384,7 @@ BOLLINGER_STD=2.0
 # Portfolio sync runs every 5 minutes
 # Bot sync runs every 2 minutes
 # Public market data fetch runs every 1 hour
+# External market intelligence sync runs every 15 minutes (creates MarketContextSnapshot)
 # Signal accuracy update runs every 1 hour
 
 # =============================================================================
@@ -384,6 +401,27 @@ AGENT_LOG_LEVEL=DEBUG
 LLM_ENABLED=False
 OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2
+
+# =============================================================================
+# Optional: External Market Intelligence
+# =============================================================================
+# Market data provider: "coingecko" (free) or "coinmarketcap" (requires API key)
+MARKET_DATA_PROVIDER=coingecko
+MARKET_DATA_API_KEY=                       # Required for CoinMarketCap
+MARKET_DATA_TIMEOUT=30.0                   # Request timeout in seconds
+MARKET_DATA_MAX_RETRIES=3                  # Max retry attempts on failure
+
+# On-chain metrics provider: "glassnode" or "intotheblock" (both require API key)
+ONCHAIN_PROVIDER=glassnode
+ONCHAIN_API_KEY=                           # Required for on-chain metrics
+ONCHAIN_TIMEOUT=30.0                       # Request timeout in seconds
+ONCHAIN_MAX_RETRIES=3                      # Max retry attempts on failure
+
+# Social sentiment provider: "lunarcrush" or "santiment" (both require API key)
+SOCIAL_SENTIMENT_PROVIDER=lunarcrush
+SOCIAL_SENTIMENT_API_KEY=                  # Required for social sentiment
+SOCIAL_SENTIMENT_TIMEOUT=30.0              # Request timeout in seconds
+SOCIAL_SENTIMENT_MAX_RETRIES=3             # Max retry attempts on failure
 ```
 
 ### Pionex API Setup
@@ -427,7 +465,9 @@ make run-celery-beat
 - **Portfolio Sync** (every 5 minutes): Fetches account balances from Pionex and creates portfolio snapshots
 - **Bot Sync** (every 2 minutes): Updates bot status and P&L from Pionex, records signal outcomes
 - **Public Market Data** (every 1 hour): Fetches Fear & Greed Index, funding rates, and open interest
+- **External Market Intelligence** (every 15 minutes): Fetches global market data, on-chain metrics, and social sentiment; creates MarketContextSnapshot with regime classification
 - **Signal Accuracy** (every 1 hour): Calculates signal accuracy metrics for all users
+- **Pattern Mining** (weekly): Discovers winning strategy patterns from historical signal outcomes
 
 #### Production (Docker)
 
@@ -780,6 +820,14 @@ See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed instructions.
 | GET | `/api/pairs/` | List trading pairs |
 | POST | `/api/pairs/` | Add trading pair |
 | GET | `/health/` | Health check endpoint |
+
+### Research UI Views
+
+| URL | Description |
+|-----|-------------|
+| `/analysis/market-intelligence/` | Comprehensive market intelligence dashboard - aggregates market data, on-chain metrics, social sentiment, and investment insights |
+| `/analysis/regimes/` | Regime detector - current regime, context scores, and regime history timeline |
+| `/analysis/signal-quality/` | Signal quality analysis - performance by regime, indicator combinations, strategy patterns |
 
 ### WebSocket
 

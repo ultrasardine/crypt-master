@@ -94,3 +94,8 @@ strict = true
 
 [tool.django-stubs]
 django_settings_module = "config.settings"
+
+[dependency-groups]
+dev = [
+    "beautifulsoup4>=4.14.3",
+]

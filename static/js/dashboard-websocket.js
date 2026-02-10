@@ -110,6 +110,9 @@ class DashboardWebSocket {
                 case 'sentiment_update':
                     this.handleSentimentUpdate(data);
                     break;
+                case 'market_context_update':
+                    this.handleMarketContextUpdate(data);
+                    break;
                 case 'alert':
                     this.handleAlert(data);
                     break;
@@ -481,6 +484,201 @@ class DashboardWebSocket {
                 fgiClassification.classList.add('bg-emerald-900/50', 'text-emerald-400');
             }
         }
+    }
+    
+    /**
+     * Handle market context update message
+     * Requirements: 4.3.2 - WebSocket updates for context cards
+     */
+    handleMarketContextUpdate(data) {
+        console.log('[WebSocket] Market context update:', data);
+        
+        // Update regime badge
+        this.updateRegimeBadge(data.regime, data.is_stale);
+        
+        // Update BTC dominance
+        this.updateBtcDominance(data.btc_dominance);
+        
+        // Update social sentiment
+        this.updateSocialSentiment(data.social_sentiment_score);
+        
+        // Update on-chain highlights
+        this.updateOnChainHighlights(data);
+    }
+    
+    /**
+     * Update regime badge in market context cards
+     */
+    updateRegimeBadge(regime, isStale) {
+        const regimeContainer = document.querySelector('.market-context-regime');
+        if (!regimeContainer) return;
+        
+        // Regime display config
+        const regimeConfig = {
+            'RISK_ON': {
+                label: 'Risk On',
+                classes: 'bg-emerald-900/50 text-emerald-400',
+                icon: '<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>'
+            },
+            'RISK_OFF': {
+                label: 'Risk Off',
+                classes: 'bg-red-900/50 text-red-400',
+                icon: '<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>'
+            },
+            'RANGE_BOUND': {
+                label: 'Range Bound',
+                classes: 'bg-slate-600 text-slate-300',
+                icon: '<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12m-12 5h12" /></svg>'
+            },
+            'TRENDING_UP': {
+                label: 'Trending Up',
+                classes: 'bg-sky-900/50 text-sky-400',
+                icon: '<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" /></svg>'
+            },
+            'TRENDING_DOWN': {
+                label: 'Trending Down',
+                classes: 'bg-amber-900/50 text-amber-400',
+                icon: '<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>'
+            },
+            'UNKNOWN': {
+                label: 'Unknown',
+                classes: 'bg-slate-600 text-slate-400',
+                icon: '<svg class="mr-1.5 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>'
+            }
+        };
+        
+        const config = regimeConfig[regime] || regimeConfig['UNKNOWN'];
+        
+        regimeContainer.innerHTML = `
+            <span class="inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold ${config.classes}">
+                ${config.icon}
+                ${config.label}
+            </span>
+        `;
+    }
+    
+    /**
+     * Update BTC dominance display
+     */
+    updateBtcDominance(btcDominance) {
+        const btcDomElement = document.querySelector('.market-context-btc-dominance');
+        if (!btcDomElement || btcDominance === null || btcDominance === undefined) return;
+        
+        const value = parseFloat(btcDominance).toFixed(1);
+        btcDomElement.textContent = `${value}%`;
+        
+        // Update progress bar
+        const progressBar = btcDomElement.closest('.px-4')?.querySelector('.bg-amber-500');
+        if (progressBar) {
+            progressBar.style.width = `${btcDominance}%`;
+        }
+    }
+    
+    /**
+     * Update social sentiment display
+     */
+    updateSocialSentiment(sentimentScore) {
+        const sentimentElement = document.querySelector('.market-context-social-sentiment');
+        if (!sentimentElement || sentimentScore === null || sentimentScore === undefined) return;
+        
+        const score = parseFloat(sentimentScore);
+        const formattedScore = score > 0 ? `+${score.toFixed(2)}` : score.toFixed(2);
+        
+        let colorClass = 'text-slate-300';
+        let label = 'Neutral';
+        
+        if (score > 0.3) {
+            colorClass = 'text-emerald-400';
+            label = 'Bullish';
+        } else if (score < -0.3) {
+            colorClass = 'text-red-400';
+            label = 'Bearish';
+        }
+        
+        sentimentElement.innerHTML = `
+            <span class="text-2xl font-bold ${colorClass}">${formattedScore}</span>
+            <span class="ml-2 text-sm text-slate-400">${label}</span>
+        `;
+        
+        // Update gauge indicator position
+        const gaugeIndicator = sentimentElement.closest('.px-4')?.querySelector('.bg-white');
+        if (gaugeIndicator) {
+            const position = ((score + 1) / 2) * 100;
+            gaugeIndicator.style.left = `calc(${position}%)`;
+        }
+    }
+    
+    /**
+     * Update on-chain highlights display
+     */
+    updateOnChainHighlights(data) {
+        const onchainElement = document.querySelector('.market-context-onchain');
+        if (!onchainElement) return;
+        
+        let html = '';
+        
+        // Whale activity
+        if (data.whale_tx_count !== null && data.whale_tx_count !== undefined) {
+            let activityLevel = 'low';
+            let colorClass = 'text-slate-300';
+            
+            if (data.whale_tx_count >= 100) {
+                activityLevel = 'high';
+                colorClass = 'text-amber-400';
+            } else if (data.whale_tx_count >= 50) {
+                activityLevel = 'moderate';
+                colorClass = 'text-sky-400';
+            }
+            
+            html += `
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-slate-400">Whale Txs</span>
+                    <span class="inline-flex items-center gap-1 text-sm font-medium ${colorClass}">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        </svg>
+                        ${data.whale_tx_count}
+                        <span class="text-xs">(${activityLevel})</span>
+                    </span>
+                </div>
+            `;
+        }
+        
+        // Exchange flow
+        if (data.net_exchange_flow !== null && data.net_exchange_flow !== undefined) {
+            let flowDirection = 'neutral';
+            let flowLabel = 'Neutral';
+            let colorClass = 'text-slate-300';
+            let icon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12M8 12h12m-12 5h12" />';
+            
+            if (data.net_exchange_flow > 0) {
+                flowDirection = 'inflow';
+                flowLabel = 'Inflow';
+                colorClass = 'text-red-400';
+                icon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />';
+            } else if (data.net_exchange_flow < 0) {
+                flowDirection = 'outflow';
+                flowLabel = 'Outflow';
+                colorClass = 'text-emerald-400';
+                icon = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18" />';
+            }
+            
+            html += `
+                <div class="flex items-center justify-between">
+                    <span class="text-xs text-slate-400">Exchange Flow</span>
+                    <span class="inline-flex items-center gap-1 text-sm font-medium ${colorClass}">
+                        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">${icon}</svg>
+                        ${flowLabel}
+                    </span>
+                </div>
+            `;
+        }
+        
+        if (html === '') {
+            html = '<span class="text-sm text-slate-500">No on-chain data available</span>';
+        }
+        
+        onchainElement.innerHTML = html;
     }
     
     /**

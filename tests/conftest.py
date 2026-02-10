@@ -10,14 +10,15 @@ import pytest
 from django.core.management import call_command
 
 
-@pytest.fixture(scope="session")
-def django_db_setup(django_db_blocker):
+@pytest.fixture(scope="session", autouse=True)
+def django_db_setup(django_db_setup, django_db_blocker):
     """Configure Django database for testing.
 
-    Creates all tables using migrations for the in-memory SQLite database.
+    Ensures all migrations are applied to the test database.
     """
-    with django_db_blocker.unblock():
-        call_command("migrate", "--run-syncdb", verbosity=0)
+    # The django_db_setup fixture from pytest-django already runs migrations
+    # This fixture just ensures it's called
+    pass
 
 
 @pytest.fixture

@@ -7,7 +7,8 @@
         docker-build docker-up docker-down docker-logs docker-shell \
         db-migrate db-makemigrations db-shell db-reset \
         run run-web run-market-agent run-bot-agent run-celery \
-        deploy ecr-login ecr-push coverage docs
+        deploy ecr-login ecr-push coverage docs \
+        discover-patterns discover-patterns-dry
 
 # Default target
 .DEFAULT_GOAL := help
@@ -58,14 +59,15 @@ help: ## Show this help message
 	@echo "$(GREEN)Database:$(RESET)"
 	@grep -E '^(db-migrate|db-makemigrations|db-shell|db-reset):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-20s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
+	@echo "$(GREEN)Market Intelligence:$(RESET)"
+	@grep -E '^(discover-patterns|discover-patterns-dry):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-20s$(RESET) %s\n", $$1, $$2}'
+	@echo ""
 	@echo "$(GREEN)Docker:$(RESET)"
 	@grep -E '^(docker-build|docker-up|docker-down|docker-logs|docker-shell|docker-clean):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-20s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
 	@echo "$(GREEN)Deployment:$(RESET)"
 	@grep -E '^(deploy|ecr-login|ecr-push|ecr-setup):.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-20s$(RESET) %s\n", $$1, $$2}'
 	@echo ""
-
-# =============================================================================
 # SETUP & INSTALLATION
 # =============================================================================
 
@@ -225,6 +227,15 @@ collectstatic: ## Collect static files
 	@echo "$(CYAN)Collecting static files...$(RESET)"
 	$(PYTHON) manage.py collectstatic --noinput
 	@echo "$(GREEN)✓ Static files collected$(RESET)"
+
+discover-patterns: ## Discover strategy patterns from historical data
+	@echo "$(CYAN)Discovering strategy patterns...$(RESET)"
+	$(PYTHON) manage.py discover_patterns
+	@echo "$(GREEN)✓ Pattern discovery complete$(RESET)"
+
+discover-patterns-dry: ## Preview strategy patterns without saving
+	@echo "$(CYAN)Previewing strategy patterns (dry-run)...$(RESET)"
+	$(PYTHON) manage.py discover_patterns --dry-run
 
 # =============================================================================
 # DOCKER - LOCAL DEVELOPMENT

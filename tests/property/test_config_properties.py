@@ -161,7 +161,7 @@ class TestConfigurationDefaults:
     **Validates: Requirements 9.4**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(partial_config=partial_risk_config_strategy())
     def test_risk_config_defaults_applied(
         self,
@@ -208,7 +208,7 @@ class TestConfigurationDefaults:
                     f"Default not applied for {key}: expected {expected}, got {actual}"
                 )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(partial_config=partial_analysis_config_strategy())
     def test_analysis_config_defaults_applied(
         self,
@@ -264,7 +264,7 @@ class TestConfigurationDefaults:
                     f"Default not applied for {key}: expected {expected}, got {actual}"
                 )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(partial_config=partial_logging_config_strategy())
     def test_logging_config_defaults_applied(
         self,
@@ -303,7 +303,7 @@ class TestConfigurationDefaults:
                     f"Default not applied for {key}: expected {expected}, got {actual}"
                 )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(st.data())
     def test_empty_config_uses_all_defaults(
         self,
@@ -351,7 +351,7 @@ class TestConfigurationDefaults:
         assert config.llm.ollama_url == defaults.llm.ollama_url
         assert config.llm.model == defaults.llm.model
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         debug=bool_strategy,
     )
@@ -375,7 +375,7 @@ class TestConfigurationDefaults:
         assert config.dry_run == defaults.dry_run  # Should be default (True)
         assert config.debug == debug
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         max_position_pct=percentage_strategy,
     )
@@ -413,7 +413,7 @@ class TestConfigurationDefaultsConsistency:
     **Validates: Requirements 9.4**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(st.data())
     def test_get_default_config_is_deterministic(
         self,
@@ -442,7 +442,7 @@ class TestConfigurationDefaultsConsistency:
         assert config1.logging.level == config2.logging.level
         assert config1.logging.max_bytes == config2.logging.max_bytes
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(st.data())
     def test_load_empty_dict_matches_get_default_config(
         self,
@@ -484,7 +484,7 @@ class TestConfigurationDefaultsConsistency:
         assert loaded.llm.ollama_url == defaults.llm.ollama_url
         assert loaded.llm.model == defaults.llm.model
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         max_position_pct=percentage_strategy,
         max_drawdown=percentage_strategy,

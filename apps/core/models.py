@@ -540,3 +540,213 @@ def save_user_profile(sender, instance: User, **kwargs) -> None:
     # Only save if profile exists (it might not during initial creation)
     if hasattr(instance, "profile"):
         instance.profile.save()
+
+
+class MarketContextSnapshotQuerySet(QuerySet):
+    """Custom QuerySet for MarketContextSnapshot model."""
+
+    def for_symbol(self, symbol: str) -> "MarketContextSnapshotQuerySet":
+        """Filter snapshots for a specific symbol."""
+        return self.filter(symbol=symbol)
+
+    def recent(self, hours: int = 24) -> "MarketContextSnapshotQuerySet":
+        """Return snapshots from the last N hours."""
+        cutoff = timezone.now() - timedelta(hours=hours)
+        return self.filter(timestamp__gte=cutoff)
+
+    def by_regime(self, regime: str) -> "MarketContextSnapshotQuerySet":
+        """Filter snapshots by regime."""
+        return self.filter(regime=regime)
+
+    def non_degraded(self) -> "MarketContextSnapshotQuerySet":
+        """Return only non-degraded snapshots."""
+        return self.filter(is_degraded=False)
+
+
+class MarketContextSnapshotManager(models.Manager):
+    """Custom manager for MarketContextSnapshot model."""
+
+    def get_queryset(self) -> MarketContextSnapshotQuerySet:
+        """Return custom queryset."""
+        return MarketContextSnapshotQuerySet(self.model, using=self._db)
+
+    def latest_for_symbol(self, symbol: str) -> "MarketContextSnapshot | None":
+        """
+        Get the most recent snapshot for a specific symbol.
+
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTC_USDT')
+
+        Returns:
+            Most recent MarketContextSnapshot for the symbol, or None if not found.
+
+        Requirements: 1.4.3 - Custom manager with latest_for_symbol method
+        """
+        return self.get_queryset().for_symbol(symbol).order_by("-timestamp").first()
+
+    def recent(self, hours: int = 24) -> MarketContextSnapshotQuerySet:
+        """
+        Get snapshots from the last N hours.
+
+        Args:
+            hours: Number of hours to look back (default: 24)
+
+        Returns:
+            QuerySet of recent snapshots.
+
+        Requirements: 1.4.3 - Custom manager with recent method
+        """
+        return self.get_queryset().recent(hours)
+
+
+class MarketContextSnapshot(TimeStampedModel):
+    """
+    Normalized snapshot of market context from external data sources.
+
+    Stores multi-source market data including macro metrics (BTC dominance,
+    market cap), on-chain metrics (active addresses, exchange flows), social
+    sentiment, and computed regime scores. Used by the Context Scorer to
+    classify market regimes and enrich trading signals.
+
+    Requirements:
+    - 1.4.1: Model extends TimeStampedModel
+    - 1.4.2: Stores all required external metrics with proper field types
+    - 1.4.3: Custom manager with latest_for_symbol and recent methods
+    """
+
+    # Core identification
+    symbol = models.CharField(
+        max_length=20,
+        db_index=True,
+        null=True,
+        blank=True,
+        help_text="Trading pair symbol (nullable for global metrics)",
+    )
+    timestamp = models.DateTimeField(
+        db_index=True,
+        help_text="When the snapshot was taken",
+    )
+
+    # Macro market metrics
+    btc_dominance = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="BTC dominance percentage",
+    )
+    global_market_cap = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Total crypto market cap in USD",
+    )
+    total_volume_24h = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="24h total crypto volume in USD",
+    )
+
+    # On-chain metrics
+    active_addresses = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Active address count",
+    )
+    net_exchange_flow = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Net exchange flow (inflow minus outflow)",
+    )
+    whale_tx_count = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Whale transaction count (>$100k)",
+    )
+    defi_tvl = models.DecimalField(
+        max_digits=20,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        help_text="Total DeFi TVL",
+    )
+
+    # Social sentiment metrics
+    social_sentiment_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Social sentiment polarity (-1.0 to 1.0)",
+    )
+    social_mention_count = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Social mention count",
+    )
+    social_buzz_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Social buzz score",
+    )
+
+    # Additional sentiment
+    fear_greed_index = models.IntegerField(
+        null=True,
+        blank=True,
+        help_text="Fear & Greed Index (0-100)",
+    )
+
+    # Data quality tracking
+    is_stale = models.BooleanField(
+        default=False,
+        help_text="True if any data source failed",
+    )
+    stale_fields = models.JSONField(
+        default=list,
+        blank=True,
+        help_text="List of field names with stale data",
+    )
+
+    # Computed regime scores
+    regime = models.CharField(
+        max_length=20,
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="Detected regime label",
+    )
+    trend_strength_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Composite trend strength score (0.0-1.0)",
+    )
+    risk_regime_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Composite risk regime score (0.0-1.0)",
+    )
+    sentiment_regime_score = models.FloatField(
+        null=True,
+        blank=True,
+        help_text="Composite sentiment regime score (0.0-1.0)",
+    )
+    is_degraded = models.BooleanField(
+        default=False,
+        help_text="True if any input was stale",
+    )
+
+    objects = MarketContextSnapshotManager()
+
+    class Meta:
+        ordering = ["-timestamp"]
+        verbose_name = "Market Context Snapshot"
+        verbose_name_plural = "Market Context Snapshots"
+        indexes = [
+            models.Index(fields=["symbol", "-timestamp"]),
+            models.Index(fields=["regime", "-timestamp"]),
+        ]
+
+    def __str__(self) -> str:
+        regime_str = f" [{self.regime}]" if self.regime else ""
+        symbol_str = f"{self.symbol} " if self.symbol else "Global "
+        return f"{symbol_str}Context @ {self.timestamp}{regime_str}"

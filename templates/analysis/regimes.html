@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}Regime Detector - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Page Header -->
+    <div class="mb-6">
+        <h1 class="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">
+            Regime Detector
+            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Market regime detection combines technical indicators, on-chain metrics, and sentiment data to classify current market conditions.</span>
+            </span>
+        </h1>
+        <p class="mt-2 text-sm text-slate-400">Track market regime transitions and context scores over time.</p>
+    </div>
+
+    <!-- Analysis Sub-Navigation -->
+    <nav class="mb-6 flex flex-wrap gap-2 border-b border-slate-700 pb-4" aria-label="Analysis navigation">
+        <a href="{% url 'analysis:analysis' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Indicators</a>
+        <a href="{% url 'analysis:market_intelligence' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Market Intelligence</a>
+        <a href="{% url 'analysis:regimes' %}" class="rounded-lg px-3 py-2 text-sm font-medium bg-indigo-600 text-white">Regime Detector</a>
+        <a href="{% url 'analysis:signal_quality' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Signal Quality</a>
+        <a href="{% url 'analysis:backtest' %}" class="rounded-lg px-3 py-2 text-sm font-medium text-slate-300 transition-colors hover:bg-slate-700 hover:text-white">Backtest</a>
+    </nav>
+
+    <!-- Time Range Selector -->
+    <form method="get" class="mb-6">
+        <div class="flex items-end gap-4">
+            <div class="w-full max-w-xs">
+                <label for="days" class="block text-sm font-medium text-slate-300">Time Range</label>
+                <select name="days" id="days" onchange="this.form.submit()" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                    {% for option in time_range_options %}
+                    <option value="{{ option.value }}" {% if selected_days == option.value %}selected{% endif %}>{{ option.label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+    </form>
+
+    {% if latest_snapshot %}
+    <!-- Current Regime Card -->
+    <div class="mb-6 overflow-hidden rounded-xl border {{ regime_colors.border }} bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">Current Market Regime</h2>
+        </div>
+        <div class="px-4 py-5 sm:px-6">
+            <div class="flex flex-col items-center justify-center sm:flex-row sm:justify-between">
+                <div class="mb-4 text-center sm:mb-0 sm:text-left">
+                    <span class="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-lg font-semibold {{ regime_colors.bg }} {{ regime_colors.text }}">
+                        <span class="h-3 w-3 rounded-full {{ regime_colors.dot }}"></span>
+                        {{ regime_display }}
+                    </span>
+                    <p class="mt-2 text-sm text-slate-400">
+                        Last updated: {{ latest_snapshot.timestamp|date:"M d, Y H:i:s" }}
+                        {% if latest_snapshot.is_stale or latest_snapshot.is_degraded %}
+                        <span class="ml-2 inline-flex items-center rounded-md bg-amber-900/50 px-2 py-0.5 text-xs font-medium text-amber-400">
+                            Stale Data
+                        </span>
+                        {% endif %}
+                    </p>
+                </div>
+                <div class="text-center sm:text-right">
+                    {% if latest_snapshot.fear_greed_index is not None %}
+                    <div class="text-sm text-slate-400">Fear & Greed Index</div>
+                    <div class="text-2xl font-bold {% if latest_snapshot.fear_greed_index <= 25 %}text-red-400{% elif latest_snapshot.fear_greed_index >= 75 %}text-emerald-400{% else %}text-amber-400{% endif %}">
+                        {{ latest_snapshot.fear_greed_index }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Context Scores -->
+    <div class="mb-6 grid grid-cols-1 gap-6 lg:grid-cols-3">
+        {% for key, score in context_scores.items %}
+        <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+            <div class="px-4 py-4 sm:px-6">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-medium text-slate-300">{{ score.label }}</h3>
+                    <span class="text-lg font-semibold {% if score.percentage >= 60 %}text-emerald-400{% elif score.percentage <= 40 %}text-red-400{% else %}text-amber-400{% endif %}">
+                        {{ score.percentage }}%
+                    </span>
+                </div>
+                <div class="mt-3">
+                    <div class="h-2 w-full overflow-hidden rounded-full bg-slate-700">
+                        <div class="h-full rounded-full transition-all duration-300 {% if score.percentage >= 60 %}bg-emerald-500{% elif score.percentage <= 40 %}bg-red-500{% else %}bg-amber-500{% endif %}" style="width: {{ score.percentage }}%"></div>
+                    </div>
+                </div>
+                <p class="mt-2 text-xs text-slate-500">
+                    {% if key == 'trend_strength' %}
+                    Measures trend intensity from ADX, Bollinger Bands, and MACD
+                    {% elif key == 'risk_regime' %}
+                    Combines Fear & Greed, exchange flows, and TVL metrics
+                    {% elif key == 'sentiment_regime' %}
+                    Aggregates social sentiment, buzz scores, and news
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Regime Timeline Chart -->
+    <div class="mb-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">Regime Timeline</h2>
+        </div>
+        <div class="px-4 py-5 sm:px-6">
+            <div class="h-64" id="regime-chart-container">
+                <canvas id="regime-chart"></canvas>
+            </div>
+            <!-- Legend -->
+            <div class="mt-4 flex flex-wrap justify-center gap-4">
+                {% for regime, colors in all_regime_colors.items %}
+                <div class="flex items-center gap-2">
+                    <span class="h-3 w-3 rounded-full {{ colors.dot }}"></span>
+                    <span class="text-xs text-slate-400">{{ regime|title }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Regime Transitions -->
+    <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h2 class="text-lg font-semibold text-slate-100">Recent Regime Transitions</h2>
+        </div>
+        <div class="px-4 py-5 sm:px-6">
+            {% if regime_transitions %}
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-700">
+                    <thead class="bg-slate-700/50">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Time</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">From</th>
+                            <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-400"></th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">To</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-slate-700">
+                        {% for transition in regime_transitions %}
+                        <tr class="transition-colors hover:bg-slate-700/50">
+                            <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-400">{{ transition.timestamp|date:"M d, H:i" }}</td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm">
+                                <span class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold {{ transition.from_colors.bg }} {{ transition.from_colors.text }}">
+                                    <span class="h-2 w-2 rounded-full {{ transition.from_colors.dot }}"></span>
+                                    {{ transition.from_display }}
+                                </span>
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4 text-center text-slate-500">
+                                <svg class="inline-block h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                                </svg>
+                            </td>
+                            <td class="whitespace-nowrap px-4 py-4 text-sm">
+                                <span class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold {{ transition.to_colors.bg }} {{ transition.to_colors.text }}">
+                                    <span class="h-2 w-2 rounded-full {{ transition.to_colors.dot }}"></span>
+                                    {{ transition.to_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-sm text-slate-500">No regime transitions detected in the selected time range.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    {% else %}
+    <!-- No Data State -->
+    <div class="rounded-lg border border-amber-500/50 bg-amber-900/20 p-6 text-center">
+        <svg class="mx-auto h-12 w-12 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        </svg>
+        <h3 class="mt-4 text-lg font-medium text-amber-400">No Market Context Data Available</h3>
+        <p class="mt-2 text-sm text-slate-400">Market context snapshots have not been collected yet. The external data sync task needs to run to populate this data.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const regimeData = {{ regime_history|safe }};
+    
+    if (regimeData.length === 0) {
+        document.getElementById('regime-chart-container').innerHTML = '<p class="text-center text-slate-500 py-8">No regime data available for the selected time range.</p>';
+        return;
+    }
+
+    // Regime color mapping
+    const regimeColors = {
+        'RISK_ON': { bg: 'rgba(16, 185, 129, 0.2)', border: 'rgb(16, 185, 129)' },
+        'RISK_OFF': { bg: 'rgba(239, 68, 68, 0.2)', border: 'rgb(239, 68, 68)' },
+        'RANGE_BOUND': { bg: 'rgba(100, 116, 139, 0.2)', border: 'rgb(100, 116, 139)' },
+        'TRENDING_UP': { bg: 'rgba(14, 165, 233, 0.2)', border: 'rgb(14, 165, 233)' },
+        'TRENDING_DOWN': { bg: 'rgba(245, 158, 11, 0.2)', border: 'rgb(245, 158, 11)' },
+        'UNKNOWN': { bg: 'rgba(71, 85, 105, 0.2)', border: 'rgb(71, 85, 105)' }
+    };
+
+    // Prepare data for chart
+    const labels = regimeData.map(d => new Date(d.timestamp));
+    const trendData = regimeData.map(d => d.trend_strength !== null ? d.trend_strength * 100 : null);
+    const riskData = regimeData.map(d => d.risk_regime !== null ? d.risk_regime * 100 : null);
+    const sentimentData = regimeData.map(d => d.sentiment_regime !== null ? d.sentiment_regime * 100 : null);
+
+    // Create background colors based on regime
+    const backgroundColors = regimeData.map(d => regimeColors[d.regime]?.bg || regimeColors['UNKNOWN'].bg);
+
+    const ctx = document.getElementById('regime-chart').getContext('2d');
+    new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels,
+            datasets: [
+                {
+                    label: 'Trend Strength',
+                    data: trendData,
+                    borderColor: 'rgb(99, 102, 241)',
+                    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: 'Risk Regime',
+                    data: riskData,
+                    borderColor: 'rgb(16, 185, 129)',
+                    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: 'Sentiment Regime',
+                    data: sentimentData,
+                    borderColor: 'rgb(245, 158, 11)',
+                    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+                    tension: 0.3,
+                    fill: false,
+                    pointRadius: 2,
+                    pointHoverRadius: 5
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        color: 'rgb(148, 163, 184)',
+                        usePointStyle: true,
+                        padding: 20
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgb(30, 41, 59)',
+                    titleColor: 'rgb(226, 232, 240)',
+                    bodyColor: 'rgb(148, 163, 184)',
+                    borderColor: 'rgb(51, 65, 85)',
+                    borderWidth: 1,
+                    callbacks: {
+                        afterBody: function(context) {
+                            const index = context[0].dataIndex;
+                            const regime = regimeData[index].regime;
+                            return '\nRegime: ' + regime.replace('_', ' ');
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    type: 'time',
+                    time: {
+                        unit: 'day',
+                        displayFormats: {
+                            day: 'MMM d'
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(51, 65, 85, 0.5)'
+                    },
+                    ticks: {
+                        color: 'rgb(148, 163, 184)'
+                    }
+                },
+                y: {
+                    min: 0,
+                    max: 100,
+                    grid: {
+                        color: 'rgba(51, 65, 85, 0.5)'
+                    },
+                    ticks: {
+                        color: 'rgb(148, 163, 184)',
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

@@ -524,6 +524,45 @@ class WebSocketBroadcaster:
         )
 
     # -------------------------------------------------------------------------
+    # Market Context Updates
+    # -------------------------------------------------------------------------
+
+    async def broadcast_market_context_update(
+        self,
+        context_data: dict[str, Any],
+    ) -> None:
+        """
+        Broadcast market context snapshot update to dashboard consumers.
+
+        Args:
+            context_data: Dict containing market context snapshot data
+                         (snapshot_id, symbol, regime, is_stale, etc.)
+
+        Requirements:
+            - 1.5.5: Broadcast WebSocket update after creating snapshot
+        """
+        channel_layer = self._get_channel_layer()
+
+        message = {
+            "type": "market_context_update",
+            **_serialize_dict(context_data),
+            "timestamp": datetime.now(tz=UTC).isoformat(),
+        }
+
+        # Send to dashboard group
+        await channel_layer.group_send(DASHBOARD_GROUP, message)
+
+        # Send to analysis group
+        await channel_layer.group_send(ANALYSIS_GROUP, message)
+
+    def broadcast_market_context_update_sync(
+        self,
+        context_data: dict[str, Any],
+    ) -> None:
+        """Synchronous version of broadcast_market_context_update."""
+        async_to_sync(self.broadcast_market_context_update)(context_data)
+
+    # -------------------------------------------------------------------------
     # Alerts
     # -------------------------------------------------------------------------
 

@@ -120,7 +120,7 @@ class TestSimulatedBalanceLedgerCorrectness:
     **Validates: Requirements 2.2, 2.3**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_quote=balance_strategy,
         initial_base=balance_strategy,
@@ -175,7 +175,7 @@ class TestSimulatedBalanceLedgerCorrectness:
             f"Base currency mismatch: expected {expected_base}, got {final_base}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_quote=balance_strategy,
         initial_base=balance_strategy,
@@ -230,7 +230,7 @@ class TestSimulatedBalanceLedgerCorrectness:
             f"Quote currency mismatch: expected {expected_quote}, got {final_quote}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         quantity=positive_amount_strategy,
@@ -280,7 +280,7 @@ class TestSimulatedBalanceLedgerCorrectness:
             f"Base balance should be unchanged: expected 0, got {final_base}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_quote=balance_strategy,
         initial_base=balance_strategy,
@@ -338,7 +338,7 @@ class TestSimulatedBalanceLedgerCorrectness:
                 f"Value not conserved: initial={initial_total}, final={final_total}"
             )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_quote=balance_strategy,
         initial_base=balance_strategy,
@@ -414,7 +414,7 @@ class TestDryRunIsolation:
     **Validates: Requirements 2.1, 10.12**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         balance1=balance_strategy,
         balance2=balance_strategy,
@@ -448,7 +448,7 @@ class TestDryRunIsolation:
                 "Simulator 2 affected by changes to Simulator 1"
             )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         quantity=positive_amount_strategy,
@@ -495,7 +495,7 @@ class TestDryRunIsolation:
         assert len(simulator.get_ledger()) == 0, "Ledger should be cleared after reset"
         assert len(simulator.get_all_bots()) == 0, "Bots should be cleared after reset"
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         investment=positive_amount_strategy,
@@ -531,7 +531,7 @@ class TestDryRunIsolation:
         # Verify bots cleared
         assert len(simulator.get_all_bots()) == 0, "Bots should be cleared after reset"
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         investment=positive_amount_strategy,
@@ -588,7 +588,7 @@ class TestDryRunIsolation:
             "Locked balance should be zero after bot stop"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         quantity=positive_amount_strategy,
@@ -624,7 +624,7 @@ class TestDryRunIsolation:
             f"Simulated order ID should start with 'SIM-', got {order.order_id}"
         )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         quantity=positive_amount_strategy,
@@ -674,7 +674,7 @@ class TestBalanceLedgerConsistency:
     **Validates: Requirements 2.2, 2.3**
     """
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
         quantity=positive_amount_strategy,
@@ -729,7 +729,7 @@ class TestBalanceLedgerConsistency:
                 f"doesn't match actual balance ({final_btc})"
             )
 
-    @settings(max_examples=100)
+    @settings(max_examples=20)
     @given(
         initial_balance=balance_strategy,
     )

@@ -22,6 +22,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING
 
 import httpx
+from asgiref.sync import sync_to_async
 
 from apps.core.models import MarketSentimentData
 from lib.messaging.websocket import WebSocketBroadcaster
@@ -308,12 +309,17 @@ class PublicDataService:
         # Track if any API failed
         any_api_failed = False
 
+        # Helper to get cached data asynchronously
+        @sync_to_async
+        def get_cached_data() -> MarketSentimentData | None:
+            return MarketSentimentData.get_latest()
+
         # Fetch Fear & Greed Index
         fng_data = await self.fetch_fear_greed_index()
         if fng_data is None:
             any_api_failed = True
             # Try to get cached data
-            cached = MarketSentimentData.get_latest()
+            cached = await get_cached_data()
             if cached:
                 fng_value = cached.fear_greed_index
                 fng_classification = cached.fear_greed_classification
@@ -330,7 +336,7 @@ class PublicDataService:
         if not funding_rates:
             any_api_failed = True
             # Try to get cached data
-            cached = MarketSentimentData.get_latest()
+            cached = await get_cached_data()
             if cached and cached.funding_rates:
                 funding_rates = cached.funding_rates
                 logger.info("Using cached funding rates data")
@@ -340,7 +346,7 @@ class PublicDataService:
         if liquidation_data is None:
             any_api_failed = True
             # Try to get cached data
-            cached = MarketSentimentData.get_latest()
+            cached = await get_cached_data()
             if cached:
                 liquidation_volume = cached.liquidation_volume_24h
                 liquidation_long_pct = cached.liquidation_long_percent
@@ -360,7 +366,7 @@ class PublicDataService:
         if not open_interest:
             any_api_failed = True
             # Try to get cached data
-            cached = MarketSentimentData.get_latest()
+            cached = await get_cached_data()
             if cached and cached.open_interest:
                 open_interest = cached.open_interest
                 logger.info("Using cached open interest data")
@@ -368,18 +374,22 @@ class PublicDataService:
         # Calculate BTC dominance (placeholder - would need additional API)
         btc_dominance = None
 
-        # Create MarketSentimentData record
-        sentiment_data = MarketSentimentData.objects.create(
-            fear_greed_index=fng_value,
-            fear_greed_classification=fng_classification,
-            funding_rates=funding_rates,
-            liquidation_volume_24h=liquidation_volume,
-            liquidation_long_percent=liquidation_long_pct,
-            liquidation_short_percent=liquidation_short_pct,
-            open_interest=open_interest,
-            btc_dominance=btc_dominance,
-            is_stale=any_api_failed,
-        )
+        # Create MarketSentimentData record asynchronously
+        @sync_to_async
+        def create_sentiment_data() -> MarketSentimentData:
+            return MarketSentimentData.objects.create(
+                fear_greed_index=fng_value,
+                fear_greed_classification=fng_classification,
+                funding_rates=funding_rates,
+                liquidation_volume_24h=liquidation_volume,
+                liquidation_long_percent=liquidation_long_pct,
+                liquidation_short_percent=liquidation_short_pct,
+                open_interest=open_interest,
+                btc_dominance=btc_dominance,
+                is_stale=any_api_failed,
+            )
+
+        sentiment_data = await create_sentiment_data()
 
         logger.info(
             f"Created market sentiment data record: FGI={fng_value}, stale={any_api_failed}"

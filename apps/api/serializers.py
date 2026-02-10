@@ -3,7 +3,13 @@
 from rest_framework import serializers
 
 from apps.bots.models import Bot, BotEvent
-from apps.core.models import PortfolioSnapshot, SystemConfig, TradingPair, UserProfile
+from apps.core.models import (
+    MarketContextSnapshot,
+    PortfolioSnapshot,
+    SystemConfig,
+    TradingPair,
+    UserProfile,
+)
 from apps.trading.models import Signal, Trade
 from lib.crypto.api_key_manager import APIKeyValidationError
 
@@ -410,3 +416,44 @@ class UserProfileAPIKeySerializer(serializers.Serializer):
                 "Invalid API secret format. Must be 16-128 alphanumeric characters."
             )
         return value
+
+
+class MarketContextSnapshotSerializer(serializers.ModelSerializer):
+    """
+    Serializer for MarketContextSnapshot model.
+
+    Handles serialization and deserialization of market context data
+    including all external metrics, computed scores, and regime information.
+
+    Requirements:
+    - 2.4: Support JSON serialization round-trip for MarketContextSnapshot
+    """
+
+    class Meta:
+        model = MarketContextSnapshot
+        fields = [
+            "id",
+            "symbol",
+            "timestamp",
+            "btc_dominance",
+            "global_market_cap",
+            "total_volume_24h",
+            "active_addresses",
+            "net_exchange_flow",
+            "whale_tx_count",
+            "defi_tvl",
+            "social_sentiment_score",
+            "social_mention_count",
+            "social_buzz_score",
+            "fear_greed_index",
+            "is_stale",
+            "stale_fields",
+            "regime",
+            "trend_strength_score",
+            "risk_regime_score",
+            "sentiment_regime_score",
+            "is_degraded",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]

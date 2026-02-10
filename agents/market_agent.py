@@ -38,10 +38,11 @@ django.setup()
 
 from django.conf import settings
 
-from apps.core.models import TradingPair
+from apps.core.models import MarketContextSnapshot, TradingPair
 from apps.trading.models import Signal as SignalModel
 from apps.trading.models import SignalDirection as DBSignalDirection
 from lib.analysis.confidence import ConfidenceConfig, IndicatorScore
+from lib.analysis.context import ContextScorer, ContextScorerConfig, ContextScores
 from lib.analysis.news import NewsAnalyzer, NewsAnalyzerConfig, NewsSentiment
 from lib.analysis.sentiment import SentimentAnalyzer, SentimentConfig
 from lib.analysis.signal import Signal, SignalGenerator, SignalGeneratorConfig
@@ -207,6 +208,8 @@ class MarketAnalysisAgent:
                 ),
             )
         )
+
+        self._context_scorer = ContextScorer(config=ContextScorerConfig())
 
         self._running = False
         self._shutdown_event = asyncio.Event()
@@ -430,6 +433,97 @@ class MarketAnalysisAgent:
             logger.error(f"Error fetching news sentiment: {e}", exc_info=True)
             return None
 
+    async def _get_context_scores(
+        self,
+        symbol: str,
+        technical_scores: list[IndicatorScore],
+    ) -> ContextScores | None:
+        """
+        Fetch latest MarketContextSnapshot and compute context scores.
+
+        Args:
+            symbol: Trading pair symbol
+            technical_scores: List of technical indicator scores
+
+        Returns:
+            ContextScores if snapshot available, None otherwise
+
+        Requirements:
+            - 2.3.1: Fetch latest MarketContextSnapshot for symbol
+            - 2.3.2: Compute context scores using ContextScorer
+            - 2.3.3: Backward compatible when no snapshot available
+        """
+        from asgiref.sync import sync_to_async
+
+        try:
+            # Fetch latest snapshot for symbol
+            @sync_to_async
+            def fetch_snapshot():
+                return MarketContextSnapshot.objects.latest_for_symbol(symbol)
+
+            snapshot = await fetch_snapshot()
+
+            if snapshot is None:
+                logger.debug(f"No MarketContextSnapshot available for {symbol}")
+                return None
+
+            # Build technical summary dict from technical scores
+            technical_summary = self._build_technical_summary(technical_scores)
+
+            # Compute context scores
+            context_scores = self._context_scorer.compute_scores(
+                snapshot=snapshot,
+                technical_summary=technical_summary,
+            )
+
+            return context_scores
+
+        except Exception as e:
+            logger.error(f"Error fetching context scores for {symbol}: {e}", exc_info=True)
+            return None
+
+    def _build_technical_summary(
+        self,
+        technical_scores: list[IndicatorScore],
+    ) -> dict[str, float]:
+        """
+        Build technical summary dict from technical indicator scores.
+
+        The ContextScorer expects a dict with keys like 'adx', 'rsi', 'bb_width',
+        'macd_histogram', 'volume_ratio', 'volatility'.
+
+        Args:
+            technical_scores: List of technical indicator scores
+
+        Returns:
+            Dict mapping indicator names to values
+        """
+        summary = {}
+
+        for score in technical_scores:
+            if score.value is None:
+                continue
+
+            # Map indicator names to expected keys
+            if score.name == "ADX":
+                summary["adx"] = float(score.value)
+            elif score.name == "RSI":
+                summary["rsi"] = float(score.value)
+            elif score.name == "BB":
+                # BB score contains middle band value, we need width
+                # For now, we'll skip BB width as it's not directly available
+                # In a full implementation, we'd calculate it from the BB result
+                pass
+            elif score.name == "MACD":
+                summary["macd_histogram"] = float(score.value)
+            elif score.name == "VOL":
+                summary["volume_ratio"] = float(score.value)
+            elif score.name == "STOCH":
+                # Stochastic not directly used by context scorer
+                pass
+
+        return summary
+
     async def analyze_symbol(
         self,
         symbol: str,
@@ -448,6 +542,10 @@ class MarketAnalysisAgent:
             Signal with direction, confidence, and metadata, or None if analysis fails
 
         Requirements:
+            - 2.3.1: Fetch latest MarketContextSnapshot for symbol
+            - 2.3.2: Pass context scores to SignalGenerator
+            - 2.3.3: Backward compatible when no snapshot available
+            - 2.3.4: Log regime and context scores
             - 11.5: Incorporate news sentiment as weighted factor
             - 11.9: Detect conflicts between news and technical signals
         """
@@ -479,18 +577,32 @@ class MarketAnalysisAgent:
         # Calculate technical indicators
         technical_scores = self._calculate_technical_scores(closes, highs, lows, volumes)
 
+        # Fetch latest MarketContextSnapshot (Requirement 2.3.1)
+        context_scores = await self._get_context_scores(symbol, technical_scores)
+
+        # Log regime and context scores if available (Requirement 2.3.4)
+        if context_scores is not None:
+            logger.info(
+                f"Context for {symbol}: regime={context_scores.regime.value}, "
+                f"trend={context_scores.trend_strength_score:.2f}, "
+                f"risk={context_scores.risk_regime_score:.2f}, "
+                f"sentiment={context_scores.sentiment_regime_score:.2f}, "
+                f"degraded={context_scores.is_degraded}"
+            )
+
         # Check for news/technical conflict (Requirement 11.9)
         if news_score is not None:
             conflict = self._detect_news_technical_conflict(technical_scores, news_score)
             if conflict:
                 logger.warning(f"News sentiment conflicts with technical signals for {symbol}")
 
-        # Generate signal
+        # Generate signal with context (Requirement 2.3.2)
         signal = self._signal_generator.generate_signal(
             symbol=symbol,
             technical_scores=technical_scores,
             sentiment_score=sentiment_score,
             news_score=news_score,
+            context=context_scores,  # Pass context scores
         )
 
         return signal
