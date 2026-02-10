@@ -31,6 +31,17 @@ urlpatterns = [
     # API key management
     path("profile/api-keys/", views.APIKeyManagementView.as_view(), name="api_key_management"),
     path("profile/api-keys/clear/", views.APIKeyClearView.as_view(), name="api_key_clear"),
+    # External API key management (on-chain, social sentiment)
+    path(
+        "profile/external-api-keys/",
+        views.ExternalAPIKeyManagementView.as_view(),
+        name="external_api_keys",
+    ),
+    path(
+        "profile/external-api-keys/clear/",
+        views.ExternalAPIKeyClearView.as_view(),
+        name="external_api_keys_clear",
+    ),
     # API token management
     path("profile/api-token/", views.APITokenView.as_view(), name="api_token"),
     path(

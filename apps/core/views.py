@@ -26,7 +26,7 @@ from django.urls import reverse_lazy
 from django.views.generic import CreateView, FormView, TemplateView, UpdateView, View
 from rest_framework.authtoken.models import Token
 
-from .forms import APIKeyForm, UserProfileForm, UserRegistrationForm
+from .forms import APIKeyForm, ExternalAPIKeyForm, UserProfileForm, UserRegistrationForm
 from .models import SystemConfig, UserProfile
 
 
@@ -318,6 +318,8 @@ class ProfileView(LoginRequiredMixin, TemplateView):
 
         context["profile"] = profile
         context["has_api_keys"] = profile.has_api_keys()
+        context["has_onchain_api_key"] = profile.has_onchain_api_key()
+        context["has_social_api_key"] = profile.has_social_api_key()
 
         # Get API token if it exists
         try:
@@ -412,6 +414,86 @@ class APIKeyClearView(LoginRequiredMixin, View):
             messages.success(request, "API credentials cleared successfully.")
 
         return redirect("core:profile")
+
+
+class ExternalAPIKeyManagementView(LoginRequiredMixin, FormView):
+    """
+    View for managing external data source API credentials.
+
+    Allows users to set API keys for on-chain metrics (Glassnode/IntoTheBlock)
+    and social sentiment (LunarCrush/Santiment).
+    """
+
+    form_class = ExternalAPIKeyForm
+    template_name = "core/external_api_keys.html"
+    success_url = reverse_lazy("core:profile")
+
+    def get_context_data(self, **kwargs):
+        """Add API key status to context."""
+        context = super().get_context_data(**kwargs)
+        profile = self.request.user.profile
+        context["has_onchain_api_key"] = profile.has_onchain_api_key()
+        context["has_social_api_key"] = profile.has_social_api_key()
+        return context
+
+    def form_valid(self, form):
+        """Save external API keys to the user's profile."""
+        try:
+            saved = form.save(self.request.user.profile)
+            saved_keys = []
+            if saved["onchain"]:
+                saved_keys.append("On-Chain")
+            if saved["social"]:
+                saved_keys.append("Social Sentiment")
+            messages.success(
+                self.request,
+                f"{', '.join(saved_keys)} API key(s) saved successfully.",
+            )
+        except Exception as e:
+            messages.error(self.request, f"Failed to save API keys: {e}")
+            return self.form_invalid(form)
+        return redirect(self.success_url)
+
+
+class ExternalAPIKeyClearView(LoginRequiredMixin, View):
+    """View for clearing external API credentials."""
+
+    def post(self, request):
+        """Clear the specified external API key."""
+        profile = request.user.profile
+        key_type = request.POST.get("key_type", "")
+
+        if key_type == "onchain":
+            if profile.has_onchain_api_key():
+                profile.clear_onchain_api_key()
+                messages.success(request, "On-Chain API key cleared successfully.")
+            else:
+                messages.info(request, "No On-Chain API key to clear.")
+        elif key_type == "social":
+            if profile.has_social_api_key():
+                profile.clear_social_api_key()
+                messages.success(request, "Social Sentiment API key cleared successfully.")
+            else:
+                messages.info(request, "No Social Sentiment API key to clear.")
+        elif key_type == "all":
+            cleared = []
+            if profile.has_onchain_api_key():
+                profile.clear_onchain_api_key()
+                cleared.append("On-Chain")
+            if profile.has_social_api_key():
+                profile.clear_social_api_key()
+                cleared.append("Social Sentiment")
+            if cleared:
+                messages.success(
+                    request,
+                    f"{', '.join(cleared)} API key(s) cleared successfully.",
+                )
+            else:
+                messages.info(request, "No external API keys to clear.")
+        else:
+            messages.error(request, "Invalid key type specified.")
+
+        return redirect("core:external_api_keys")
 
 
 class APITokenView(LoginRequiredMixin, TemplateView):

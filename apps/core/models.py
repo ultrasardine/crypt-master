@@ -342,6 +342,14 @@ class UserProfile(TimeStampedModel):
     encrypted_api_secret = models.TextField(blank=True, default="")
     api_key_salt = models.CharField(max_length=64, blank=True, default="")
 
+    # Encrypted On-Chain API credentials (Glassnode/IntoTheBlock)
+    encrypted_onchain_api_key = models.TextField(blank=True, default="")
+    onchain_api_key_salt = models.CharField(max_length=64, blank=True, default="")
+
+    # Encrypted Social Sentiment API credentials (LunarCrush/Santiment)
+    encrypted_social_api_key = models.TextField(blank=True, default="")
+    social_api_key_salt = models.CharField(max_length=64, blank=True, default="")
+
     # User preferences
     default_trading_mode = models.CharField(
         max_length=20,
@@ -474,6 +482,110 @@ class UserProfile(TimeStampedModel):
         self.api_key_salt = ""
 
         self.save(update_fields=["encrypted_api_key", "encrypted_api_secret", "api_key_salt"])
+
+    # On-Chain API Key Methods (Glassnode/IntoTheBlock)
+
+    def has_onchain_api_key(self) -> bool:
+        """Check if the user has an on-chain API key configured."""
+        return bool(self.encrypted_onchain_api_key and self.onchain_api_key_salt)
+
+    def get_decrypted_onchain_api_key(self) -> str:
+        """
+        Decrypt and return the user's on-chain API key.
+
+        Returns:
+            The decrypted API key string.
+
+        Raises:
+            ValueError: If no API key is configured.
+            APIKeyDecryptionError: If decryption fails.
+        """
+        if not self.has_onchain_api_key():
+            raise ValueError("No on-chain API key configured for this user")
+
+        manager = self._get_api_key_manager()
+        salt = base64.b64decode(self.onchain_api_key_salt)
+        return manager.decrypt(self.encrypted_onchain_api_key, salt)
+
+    def set_onchain_api_key(self, api_key: str) -> None:
+        """
+        Encrypt and store a new on-chain API key.
+
+        Args:
+            api_key: The API key to encrypt and store.
+
+        Raises:
+            ValueError: If api_key is empty.
+        """
+        if not api_key:
+            raise ValueError("API key cannot be empty")
+
+        manager = self._get_api_key_manager()
+        salt = manager.generate_salt()
+
+        self.encrypted_onchain_api_key = manager.encrypt(api_key, salt)
+        self.onchain_api_key_salt = base64.b64encode(salt).decode("utf-8")
+
+        self.save(update_fields=["encrypted_onchain_api_key", "onchain_api_key_salt"])
+
+    def clear_onchain_api_key(self) -> None:
+        """Securely remove stored on-chain API key."""
+        self.encrypted_onchain_api_key = ""
+        self.onchain_api_key_salt = ""
+
+        self.save(update_fields=["encrypted_onchain_api_key", "onchain_api_key_salt"])
+
+    # Social Sentiment API Key Methods (LunarCrush/Santiment)
+
+    def has_social_api_key(self) -> bool:
+        """Check if the user has a social sentiment API key configured."""
+        return bool(self.encrypted_social_api_key and self.social_api_key_salt)
+
+    def get_decrypted_social_api_key(self) -> str:
+        """
+        Decrypt and return the user's social sentiment API key.
+
+        Returns:
+            The decrypted API key string.
+
+        Raises:
+            ValueError: If no API key is configured.
+            APIKeyDecryptionError: If decryption fails.
+        """
+        if not self.has_social_api_key():
+            raise ValueError("No social sentiment API key configured for this user")
+
+        manager = self._get_api_key_manager()
+        salt = base64.b64decode(self.social_api_key_salt)
+        return manager.decrypt(self.encrypted_social_api_key, salt)
+
+    def set_social_api_key(self, api_key: str) -> None:
+        """
+        Encrypt and store a new social sentiment API key.
+
+        Args:
+            api_key: The API key to encrypt and store.
+
+        Raises:
+            ValueError: If api_key is empty.
+        """
+        if not api_key:
+            raise ValueError("API key cannot be empty")
+
+        manager = self._get_api_key_manager()
+        salt = manager.generate_salt()
+
+        self.encrypted_social_api_key = manager.encrypt(api_key, salt)
+        self.social_api_key_salt = base64.b64encode(salt).decode("utf-8")
+
+        self.save(update_fields=["encrypted_social_api_key", "social_api_key_salt"])
+
+    def clear_social_api_key(self) -> None:
+        """Securely remove stored social sentiment API key."""
+        self.encrypted_social_api_key = ""
+        self.social_api_key_salt = ""
+
+        self.save(update_fields=["encrypted_social_api_key", "social_api_key_salt"])
 
 
 class MarketSentimentData(TimeStampedModel):

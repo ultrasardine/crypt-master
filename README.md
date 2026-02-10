@@ -27,7 +27,7 @@ Crypt Master is a fully automated cryptocurrency trading system that integrates 
 
 ### Key Capabilities
 
-- **Multi-Tenant Architecture**: Complete user data isolation with per-user encrypted API keys
+- **Multi-Tenant Architecture**: Complete user data isolation with per-user encrypted API keys for Pionex, on-chain data providers (Glassnode/IntoTheBlock), and social sentiment providers (LunarCrush/Santiment)
 - **Multi-factor Market Analysis**: Technical indicators (RSI, MACD, Bollinger Bands, ADX, Stochastic), sentiment analysis, and volume anomaly detection
 - **Market Intelligence Layer**: Context-aware signal generation using external market data (BTC dominance, on-chain metrics, social sentiment) with regime classification (RISK_ON, RISK_OFF, TRENDING_UP, TRENDING_DOWN, RANGE_BOUND)
 - **External Market Intelligence**: Pluggable data sources for market aggregators (CoinGecko/CoinMarketCap), on-chain metrics (Glassnode/IntoTheBlock, Blockchain.com), and social sentiment (LunarCrush/Santiment)
@@ -405,8 +405,12 @@ OLLAMA_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.2
 
 # =============================================================================
-# Optional: External Market Intelligence
+# Optional: External Market Intelligence (System-Wide Defaults)
 # =============================================================================
+# These environment variables set system-wide defaults. Individual users can
+# configure their own API keys via their User Profile settings, which take
+# precedence over these defaults for multi-tenant isolation.
+
 # Market data provider: "coingecko" (free) or "coinmarketcap" (requires API key)
 MARKET_DATA_PROVIDER=coingecko
 MARKET_DATA_API_KEY=                       # Required for CoinMarketCap
@@ -441,6 +445,27 @@ SOCIAL_SENTIMENT_MAX_RETRIES=3             # Max retry attempts on failure
 4. Copy the API Key and Secret to your `.env` file
 
 > ⚠️ **Security**: Never commit API keys to version control. Keep your `.env` file secure.
+
+### User Profile API Key Management
+
+Each user can configure their own API keys through the web interface:
+
+1. **Pionex API Keys** (`/profile/api-keys/`):
+   - Required for live trading
+   - Encrypted with per-user salt using Fernet encryption
+   - Never exposed through the API or displayed in the interface
+
+2. **External Data API Keys** (`/profile/external-api-keys/`):
+   - **On-Chain Metrics**: Glassnode or IntoTheBlock API key for active addresses, exchange flow, whale transactions, and DeFi TVL
+   - **Social Sentiment**: LunarCrush or Santiment API key for sentiment polarity, mention counts, and buzz scores
+   - User-specific keys take precedence over system-wide environment variables
+   - Enables multi-tenant isolation for external data sources
+
+To configure:
+1. Log in to your account
+2. Navigate to **Profile** → **Manage External API Keys**
+3. Enter your API keys for the providers you want to use
+4. Keys are encrypted and stored securely
 
 ---
 

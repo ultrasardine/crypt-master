@@ -234,3 +234,77 @@ class APIKeyForm(forms.Form):
         api_key = self.cleaned_data["api_key"]
         api_secret = self.cleaned_data["api_secret"]
         profile.set_api_credentials(api_key, api_secret)
+
+
+class ExternalAPIKeyForm(forms.Form):
+    """
+    Form for setting external data source API credentials.
+
+    Supports on-chain (Glassnode/IntoTheBlock) and social sentiment
+    (LunarCrush/Santiment) API keys.
+    """
+
+    onchain_api_key = forms.CharField(
+        required=False,
+        min_length=8,
+        max_length=256,
+        widget=forms.PasswordInput(
+            attrs={
+                "placeholder": "Enter your Glassnode or IntoTheBlock API key",
+                "autocomplete": "off",
+                "class": "config-input",
+            }
+        ),
+        help_text="API key for on-chain metrics (Glassnode or IntoTheBlock)",
+    )
+    social_api_key = forms.CharField(
+        required=False,
+        min_length=8,
+        max_length=256,
+        widget=forms.PasswordInput(
+            attrs={
+                "placeholder": "Enter your LunarCrush or Santiment API key",
+                "autocomplete": "off",
+                "class": "config-input",
+            }
+        ),
+        help_text="API key for social sentiment (LunarCrush or Santiment)",
+    )
+
+    def clean(self):
+        """Ensure at least one API key is provided."""
+        cleaned_data = super().clean()
+        onchain_key = cleaned_data.get("onchain_api_key", "").strip()
+        social_key = cleaned_data.get("social_api_key", "").strip()
+
+        if not onchain_key and not social_key:
+            raise forms.ValidationError(
+                "Please provide at least one API key to save."
+            )
+
+        return cleaned_data
+
+    def save(self, profile: UserProfile) -> dict[str, bool]:
+        """
+        Save external API keys to the user profile.
+
+        Args:
+            profile: The UserProfile instance to update.
+
+        Returns:
+            Dict indicating which keys were saved.
+        """
+        saved = {"onchain": False, "social": False}
+
+        onchain_key = self.cleaned_data.get("onchain_api_key", "").strip()
+        social_key = self.cleaned_data.get("social_api_key", "").strip()
+
+        if onchain_key:
+            profile.set_onchain_api_key(onchain_key)
+            saved["onchain"] = True
+
+        if social_key:
+            profile.set_social_api_key(social_key)
+            saved["social"] = True
+
+        return saved
