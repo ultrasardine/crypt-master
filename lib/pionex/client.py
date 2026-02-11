@@ -25,13 +25,18 @@ import httpx
 from lib.pionex.auth import PionexAuthenticator
 from lib.pionex.models import (
     Balance,
+    BookTicker,
     BotInfo,
     CancelOrderResponse,
     Candle,
     DCABotParams,
+    Fill,
     GridBotParams,
+    MassOrderRequest,
+    MassOrderResult,
     OrderBook,
     OrderBookLevel,
+    OrderDetail,
     OrderRequest,
     OrderResponse,
     OrderSide,
@@ -39,8 +44,10 @@ from lib.pionex.models import (
     PionexError,
     Symbol,
     SymbolType,
+    Ticker24hr,
     Trade,
 )
+from lib.pionex.rate_limiter import RateLimiter
 
 logger = logging.getLogger(__name__)
 
@@ -88,6 +95,7 @@ class PionexClient:
         api_secret: str,
         base_url: str = PIONEX_API_BASE_URL,
         timeout: float = DEFAULT_TIMEOUT,
+        rate_limiter: RateLimiter | None = None,
     ) -> None:
         """
         Initialize the Pionex client.
@@ -97,6 +105,8 @@ class PionexClient:
             api_secret: Pionex API secret for signing requests
             base_url: API base URL (default: production)
             timeout: Request timeout in seconds
+            rate_limiter: Optional RateLimiter instance for rate limiting.
+                         If not provided, a default RateLimiter will be created.
 
         Raises:
             ValueError: If api_key or api_secret is empty
@@ -105,6 +115,7 @@ class PionexClient:
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
         self._client: httpx.AsyncClient | None = None
+        self._rate_limiter = rate_limiter if rate_limiter is not None else RateLimiter()
 
     async def __aenter__(self) -> PionexClient:
         """Enter async context manager."""
@@ -134,6 +145,47 @@ class PionexClient:
             await self._client.aclose()
             self._client = None
 
+    @property
+    def rate_limiter(self) -> RateLimiter:
+        """
+        Get the rate limiter instance.
+
+        Returns:
+            The RateLimiter used by this client
+
+        Requirements:
+            - 4.6: Expose current usage metrics via dashboard
+        """
+        return self._rate_limiter
+
+    def _get_endpoint_weight(self, endpoint: str) -> int:
+        """
+        Get the weight for an API endpoint.
+
+        Weights are based on Pionex API documentation:
+        - Most endpoints: 1 weight
+        - Open orders, all orders, fills: 5 weight
+
+        Args:
+            endpoint: API endpoint path
+
+        Returns:
+            Weight for the endpoint
+        """
+        # Endpoints with weight 5
+        heavy_endpoints = {
+            "/api/v1/trade/openOrders",
+            "/api/v1/trade/allOrders",
+            "/api/v1/trade/fills",
+            "/api/v1/trade/fillsByOrderId",
+        }
+
+        if endpoint in heavy_endpoints:
+            return 5
+
+        # Default weight is 1
+        return 1
+
     async def _request(
         self,
         method: str,
@@ -146,9 +198,11 @@ class PionexClient:
         Make an HTTP request to the Pionex API.
 
         This method handles:
+        - Rate limiting (acquire before request, record after)
         - Authentication (signing requests)
         - Retry logic with exponential backoff
         - Error parsing and structured error responses
+        - Detailed logging for debugging
 
         Args:
             method: HTTP method (GET, POST, DELETE)
@@ -162,19 +216,47 @@ class PionexClient:
 
         Raises:
             PionexAPIError: If the request fails after all retries
+
+        Requirements:
+            - 4.1: Track IP weights
+            - 4.2: Track account weights for private endpoints
+            - 4.3: Queue requests to stay within limits
         """
         client = await self._ensure_client()
+
+        # Determine request weight and acquire rate limit
+        weight = self._get_endpoint_weight(endpoint)
+        is_private = authenticated
+
+        # Acquire rate limit before making request
+        await self._rate_limiter.acquire(weight=weight, is_private=is_private)
 
         # Prepare request parameters
         request_params = dict(params) if params else {}
         headers: dict[str, str] = {}
 
         if authenticated:
-            auth_headers, request_params = self._authenticator.sign_request(request_params)
+            auth_headers, request_params = self._authenticator.sign_request(
+                method=method,
+                path=endpoint,
+                params=request_params,
+                body=data,
+            )
             headers.update(auth_headers)
 
         last_error: PionexError | None = None
         retry_delay = INITIAL_RETRY_DELAY
+
+        # Log request details (never log secrets)
+        logger.debug(
+            f"Pionex API request: {method} {endpoint}",
+            extra={
+                "method": method,
+                "endpoint": endpoint,
+                "authenticated": authenticated,
+                "param_keys": list(request_params.keys()) if request_params else [],
+            },
+        )
 
         for attempt in range(MAX_RETRIES + 1):
             try:
@@ -203,8 +285,25 @@ class PionexClient:
                 # Parse response
                 response_data = response.json() if response.content else {}
 
+                # Log response summary (truncate large responses)
+                response_preview = str(response_data)[:200]
+                if len(str(response_data)) > 200:
+                    response_preview += "..."
+                logger.debug(
+                    f"Pionex API response: {method} {endpoint} -> {response.status_code}",
+                    extra={
+                        "method": method,
+                        "endpoint": endpoint,
+                        "status_code": response.status_code,
+                        "response_preview": response_preview,
+                    },
+                )
+
                 # Check for success
                 if response.is_success:
+                    # Record the request weight after successful response
+                    self._rate_limiter.record_request(weight=weight, is_private=is_private)
+
                     # Pionex API returns result in "data" field on success
                     # with "result" being True
                     if response_data.get("result") is True:
@@ -215,12 +314,25 @@ class PionexClient:
                             status_code=response.status_code,
                             response_data=response_data,
                         )
+                        logger.warning(
+                            f"Pionex API error response: {error.message}",
+                            extra={
+                                "method": method,
+                                "endpoint": endpoint,
+                                "status_code": response.status_code,
+                                "error_code": error.error_code,
+                                "error_message": error.message,
+                            },
+                        )
                         raise PionexAPIError(error)
                     else:
                         # Some endpoints may not have "result" field
                         return response_data
 
                 # Handle error response
+                # Record the request weight even for error responses
+                self._rate_limiter.record_request(weight=weight, is_private=is_private)
+
                 retry_after = None
                 if "Retry-After" in response.headers:
                     try:
@@ -233,6 +345,37 @@ class PionexClient:
                     response_data=response_data,
                     retry_after=retry_after,
                 )
+
+                # Log error details
+                logger.warning(
+                    f"Pionex API error: {method} {endpoint} -> {response.status_code} {error.message}",
+                    extra={
+                        "method": method,
+                        "endpoint": endpoint,
+                        "status_code": response.status_code,
+                        "error_code": error.error_code,
+                        "error_message": error.message,
+                        "is_retryable": error.is_retryable,
+                        "attempt": attempt + 1,
+                    },
+                )
+
+                # Handle 429 rate limit response
+                # Requirements: 4.4 - Wait 60 seconds on 429 response before retrying
+                if response.status_code == 429:
+                    self._rate_limiter.handle_429()
+                    last_error = error
+                    # Wait for the ban to expire (handle_429 sets 60s ban)
+                    wait_time = self._rate_limiter.ban_remaining
+                    if wait_time > 0:
+                        logger.warning(
+                            f"Rate limited (429): waiting {wait_time:.1f}s before retry"
+                        )
+                        await asyncio.sleep(wait_time)
+                    # Continue to retry after waiting
+                    if attempt < MAX_RETRIES:
+                        continue
+                    raise PionexAPIError(error)
 
                 # Check if we should retry
                 if error.is_retryable and attempt < MAX_RETRIES:
@@ -255,6 +398,15 @@ class PionexClient:
                     message=f"Request timeout: {e}",
                     is_retryable=True,
                 )
+                logger.warning(
+                    f"Pionex API timeout: {method} {endpoint}",
+                    extra={
+                        "method": method,
+                        "endpoint": endpoint,
+                        "error": str(e),
+                        "attempt": attempt + 1,
+                    },
+                )
                 if attempt < MAX_RETRIES:
                     logger.warning(
                         f"Timeout on attempt {attempt + 1}/{MAX_RETRIES + 1}. "
@@ -271,6 +423,15 @@ class PionexClient:
                     error_code=None,
                     message=f"Request error: {e}",
                     is_retryable=True,
+                )
+                logger.warning(
+                    f"Pionex API request error: {method} {endpoint}",
+                    extra={
+                        "method": method,
+                        "endpoint": endpoint,
+                        "error": str(e),
+                        "attempt": attempt + 1,
+                    },
                 )
                 if attempt < MAX_RETRIES:
                     logger.warning(
@@ -293,6 +454,65 @@ class PionexClient:
                 is_retryable=False,
             )
         )
+
+    # =========================================================================
+    # Health Check Methods
+    # =========================================================================
+
+    async def health_check(self) -> dict[str, Any]:
+        """
+        Perform a health check on the Pionex API connection.
+
+        This method tests both public and authenticated endpoints to verify:
+        - API connectivity
+        - Authentication credentials
+        - Timestamp synchronization
+
+        Returns:
+            Dictionary with health check results:
+            - public_api: bool - Whether public API is reachable
+            - authenticated_api: bool - Whether authenticated API works
+            - symbols_count: int - Number of symbols retrieved
+            - balances_count: int - Number of non-zero balances (if auth works)
+            - error: str | None - Error message if any check failed
+
+        Example:
+            >>> async with PionexClient(api_key="key", api_secret="secret") as client:
+            ...     health = await client.health_check()
+            ...     if health["authenticated_api"]:
+            ...         print("API credentials are valid!")
+        """
+        result: dict[str, Any] = {
+            "public_api": False,
+            "authenticated_api": False,
+            "symbols_count": 0,
+            "balances_count": 0,
+            "error": None,
+        }
+
+        # Test public API
+        try:
+            symbols = await self.get_symbols()
+            result["public_api"] = True
+            result["symbols_count"] = len(symbols)
+            logger.info(f"Health check: Public API OK, {len(symbols)} symbols")
+        except PionexAPIError as e:
+            result["error"] = f"Public API error: {e.error.message}"
+            logger.error(f"Health check: Public API failed - {e.error.message}")
+            return result
+
+        # Test authenticated API
+        try:
+            balances = await self.get_balances()
+            result["authenticated_api"] = True
+            non_zero = [b for b in balances if b.free > 0 or b.locked > 0]
+            result["balances_count"] = len(non_zero)
+            logger.info(f"Health check: Authenticated API OK, {len(non_zero)} balances")
+        except PionexAPIError as e:
+            result["error"] = f"Authentication error: {e.error.message}"
+            logger.error(f"Health check: Authenticated API failed - {e.error.message}")
+
+        return result
 
     # =========================================================================
     # Market Data Methods
@@ -852,6 +1072,639 @@ class PionexClient:
         )
 
         return cancel_response
+
+    # =========================================================================
+    # Extended Order Methods
+    # =========================================================================
+
+    async def get_order(self, symbol: str, order_id: int) -> OrderDetail:
+        """
+        Retrieve order details by order ID.
+
+        This method fetches detailed information about a specific order
+        using its exchange-assigned order ID.
+
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC_USDT")
+            order_id: Exchange-assigned order ID
+
+        Returns:
+            OrderDetail with complete order information
+
+        Raises:
+            PionexAPIError: If the API request fails (e.g., order not found,
+                authentication error)
+
+        Requirements:
+            - 1.1: Retrieve order details by orderId from GET /api/v1/trade/order
+
+        Example:
+            >>> async with PionexClient(api_key="key", api_secret="secret") as client:
+            ...     order = await client.get_order("BTC_USDT", 123456789)
+            ...     print(f"Order {order.order_id}: {order.status.value}")
+        """
+        params: dict[str, Any] = {
+            "symbol": symbol,
+            "orderId": order_id,
+        }
+
+        logger.debug(f"Getting order {order_id} for {symbol}")
+
+        response = await self._request(
+            method="GET",
+            endpoint="/api/v1/trade/order",
+            params=params,
+            authenticated=True,
+        )
+
+        order_detail = OrderDetail.from_api_response(response)
+
+        logger.debug(
+            f"Retrieved order {order_detail.order_id} "
+            f"(status: {order_detail.status.value})"
+        )
+
+        return order_detail
+
+    async def get_order_by_client_id(
+        self, symbol: str, client_order_id: str
+    ) -> OrderDetail:
+        """
+        Retrieve order details by client order ID.
+
+        This method fetches detailed information about a specific order
+        using the client-defined order ID that was provided when creating
+        the order.
+
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC_USDT")
+            client_order_id: Client-defined order ID
+
+        Returns:
+            OrderDetail with complete order information
+
+        Raises:
+            PionexAPIError: If the API request fails (e.g., order not found,
+                authentication error)
+
+        Requirements:
+            - 1.2: Retrieve order details from GET /api/v1/trade/orderByClientOrderId
+
+        Example:
+            >>> async with PionexClient(api_key="key", api_secret="secret") as client:
+            ...     order = await client.get_order_by_client_id("BTC_USDT", "my-order-001")
+            ...     print(f"Order {order.order_id}: {order.status.value}")
+        """
+        params: dict[str, Any] = {
+            "symbol": symbol,
+            "clientOrderId": client_order_id,
+        }
+
+        logger.debug(f"Getting order by client ID {client_order_id} for {symbol}")
+
+        response = await self._request(
+            method="GET",
+            endpoint="/api/v1/trade/orderByClientOrderId",
+            params=params,
+            authenticated=True,
+        )
+
+        order_detail = OrderDetail.from_api_response(response)
+
+        logger.debug(
+            f"Retrieved order {order_detail.order_id} by client ID "
+            f"(status: {order_detail.status.value})"
+        )
+
+        return order_detail
+
+    async def get_open_orders(self, symbol: str) -> list[OrderDetail]:
+        """
+        Retrieve all open orders for a symbol.
+
+        This method fetches all currently open (unfilled) orders for
+        the specified trading pair.
+
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC_USDT")
+
+        Returns:
+            List of OrderDetail objects for all open orders
+
+        Raises:
+            PionexAPIError: If the API request fails (e.g., authentication error)
+
+        Requirements:
+            - 1.3: Retrieve all open orders from GET /api/v1/trade/openOrders
+
+        Example:
+            >>> async with PionexClient(api_key="key", api_secret="secret") as client:
+            ...     orders = await client.get_open_orders("BTC_USDT")
+            ...     for order in orders:
+            ...         print(f"Open order: {order.order_id} - {order.side.value}")
+        """
+        params: dict[str, Any] = {
+            "symbol": symbol,
+        }
+
+        logger.debug(f"Getting open orders for {symbol}")
+
+        response = await self._request(
+            method="GET",
+            endpoint="/api/v1/trade/openOrders",
+            params=params,
+            authenticated=True,
+        )
+
+        orders: list[OrderDetail] = []
+        orders_data = response.get("orders", [])
+
+        for item in orders_data:
+            try:
+                order = OrderDetail.from_api_response(item)
+                orders.append(order)
+            except (KeyError, ValueError) as e:
+                logger.warning(f"Failed to parse order: {item}. Error: {e}")
+                continue
+
+        logger.debug(f"Retrieved {len(orders)} open orders for {symbol}")
+
+        return orders
+
+    async def get_all_orders(
+        self,
+        symbol: str,
+        start_time: int | None = None,
+        end_time: int | None = None,
+        limit: int = 50,
+    ) -> list[OrderDetail]:
+        """
+        Retrieve all orders (open and closed) for a symbol.
+
+        This method fetches order history including both open and closed
+        orders, with optional time range filtering and pagination.
+
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC_USDT")
+            start_time: Start time in milliseconds (optional)
+            end_time: End time in milliseconds (optional)
+            limit: Maximum number of orders to return (default: 50, max: 100)
+
+        Returns:
+            List of OrderDetail objects
+
+        Raises:
+            PionexAPIError: If the API request fails (e.g., authentication error)
+
+        Requirements:
+            - 1.4: Retrieve all orders from GET /api/v1/trade/allOrders with pagination
+
+        Example:
+            >>> async with PionexClient(api_key="key", api_secret="secret") as client:
+            ...     orders = await client.get_all_orders("BTC_USDT", limit=100)
+            ...     for order in orders:
+            ...         print(f"Order: {order.order_id} - {order.status.value}")
+        """
+        params: dict[str, Any] = {
+            "symbol": symbol,
+            "limit": min(limit, 100),
+        }
+
+        if start_time is not None:
+            params["startTime"] = start_time
+        if end_time is not None:
+            params["endTime"] = end_time
+
+        logger.debug(f"Getting all orders for {symbol} (limit: {limit})")
+
+        response = await self._request(
+            method="GET",
+            endpoint="/api/v1/trade/allOrders",
+            params=params,
+            authenticated=True,
+        )
+
+        orders: list[OrderDetail] = []
+        orders_data = response.get("orders", [])
+
+        for item in orders_data:
+            try:
+                order = OrderDetail.from_api_response(item)
+                orders.append(order)
+            except (KeyError, ValueError) as e:
+                logger.warning(f"Failed to parse order: {item}. Error: {e}")
+                continue
+
+        logger.debug(f"Retrieved {len(orders)} orders for {symbol}")
+
+        return orders
+
+    async def create_mass_order(
+        self, symbol: str, orders: list[MassOrderRequest]
+    ) -> list[MassOrderResult]:
+        """
+        Create multiple orders in a single request.
+
+        This method submits up to 20 LIMIT orders in a single API call,
+        which is more efficient than creating orders individually.
+
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC_USDT")
+            orders: List of MassOrderRequest objects (max 20)
+
+        Returns:
+            List of MassOrderResult objects with created order IDs
+
+        Raises:
+            PionexAPIError: If the API request fails (e.g., insufficient balance,
+                invalid parameters, authentication error)
+            ValueError: If more than 20 orders are provided
+
+        Requirements:
+            - 1.5: Submit up to 20 LIMIT orders via POST /api/v1/trade/massOrder
+
+        Example:
+            >>> from decimal import Decimal
+            >>> from lib.pionex.models import MassOrderRequest, OrderSide
+            >>>
+            >>> async with PionexClient(api_key="key", api_secret="secret") as client:
+            ...     orders = [
+            ...         MassOrderRequest(
+            ...             side=OrderSide.BUY,
+            ...             price=Decimal("30000.00"),
+            ...             size=Decimal("0.001"),
+            ...         ),
+            ...         MassOrderRequest(
+            ...             side=OrderSide.BUY,
+            ...             price=Decimal("29500.00"),
+            ...             size=Decimal("0.001"),
+            ...         ),
+            ...     ]
+            ...     results = await client.create_mass_order("BTC_USDT", orders)
+            ...     for result in results:
+            ...         print(f"Created order: {result.order_id}")
+        """
+        if len(orders) > 20:
+            raise ValueError("Mass order request cannot exceed 20 orders")
+
+        if len(orders) == 0:
+            raise ValueError("At least one order is required")
+
+        order_params = [order.to_api_params() for order in orders]
+
+        data: dict[str, Any] = {
+            "symbol": symbol,
+            "orders": order_params,
+        }
+
+        logger.info(f"Creating {len(orders)} orders for {symbol}")
+
+        response = await self._request(
+            method="POST",
+            endpoint="/api/v1/trade/massOrder",
+            data=data,
+            authenticated=True,
+        )
+
+        results: list[MassOrderResult] = []
+        results_data = response.get("orders", [])
+
+        for item in results_data:
+            try:
+                result = MassOrderResult.from_api_response(item)
+                results.append(result)
+            except (KeyError, ValueError) as e:
+                logger.warning(f"Failed to parse mass order result: {item}. Error: {e}")
+                continue
+
+        logger.info(f"Created {len(results)} orders for {symbol}")
+
+        return results
+
+    async def cancel_all_orders(self, symbol: str) -> bool:
+        """
+        Cancel all open orders for a symbol.
+
+        This method cancels all currently open orders for the specified
+        trading pair in a single API call.
+
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC_USDT")
+
+        Returns:
+            True if all orders were successfully canceled
+
+        Raises:
+            PionexAPIError: If the API request fails (e.g., authentication error)
+
+        Requirements:
+            - 1.6: Cancel all open orders via DELETE /api/v1/trade/allOrders
+
+        Example:
+            >>> async with PionexClient(api_key="key", api_secret="secret") as client:
+            ...     success = await client.cancel_all_orders("BTC_USDT")
+            ...     if success:
+            ...         print("All orders canceled")
+        """
+        params: dict[str, Any] = {
+            "symbol": symbol,
+        }
+
+        logger.info(f"Canceling all orders for {symbol}")
+
+        response = await self._request(
+            method="DELETE",
+            endpoint="/api/v1/trade/allOrders",
+            params=params,
+            authenticated=True,
+        )
+
+        # Check if cancellation was successful
+        success = response.get("success", True)
+
+        if success:
+            logger.info(f"All orders canceled for {symbol}")
+        else:
+            logger.warning(f"Cancel all orders returned unexpected response: {response}")
+
+        return bool(success)
+
+    # =========================================================================
+    # Fill Methods
+    # =========================================================================
+
+    async def get_fills(
+        self,
+        symbol: str,
+        start_time: int | None = None,
+        end_time: int | None = None,
+    ) -> list[Fill]:
+        """
+        Retrieve fill history for a symbol.
+
+        This method fetches trade execution records (fills) for the specified
+        trading pair, with optional time range filtering. Returns a maximum
+        of 100 fills.
+
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC_USDT")
+            start_time: Start time in milliseconds (optional)
+            end_time: End time in milliseconds (optional)
+
+        Returns:
+            List of Fill objects (max 100)
+
+        Raises:
+            PionexAPIError: If the API request fails (e.g., authentication error)
+
+        Requirements:
+            - 2.1: Retrieve fill history from GET /api/v1/trade/fills
+            - 2.4: Return max 100 fills
+
+        Example:
+            >>> async with PionexClient(api_key="key", api_secret="secret") as client:
+            ...     fills = await client.get_fills("BTC_USDT")
+            ...     for fill in fills:
+            ...         print(f"Fill {fill.id}: {fill.side.value} {fill.size} @ {fill.price}")
+        """
+        params: dict[str, Any] = {
+            "symbol": symbol,
+        }
+
+        if start_time is not None:
+            params["startTime"] = start_time
+        if end_time is not None:
+            params["endTime"] = end_time
+
+        logger.debug(f"Getting fills for {symbol}")
+
+        response = await self._request(
+            method="GET",
+            endpoint="/api/v1/trade/fills",
+            params=params,
+            authenticated=True,
+        )
+
+        fills: list[Fill] = []
+        fills_data = response.get("fills", [])
+
+        for item in fills_data:
+            try:
+                fill = Fill.from_api_response(item)
+                fills.append(fill)
+            except (KeyError, ValueError) as e:
+                logger.warning(f"Failed to parse fill: {item}. Error: {e}")
+                continue
+
+        # Ensure we return max 100 fills (API should enforce this, but be safe)
+        fills = fills[:100]
+
+        logger.debug(f"Retrieved {len(fills)} fills for {symbol}")
+
+        return fills
+
+    async def get_fills_by_order_id(
+        self,
+        symbol: str,
+        order_id: int,
+        from_id: int | None = None,
+    ) -> list[Fill]:
+        """
+        Retrieve fills for a specific order.
+
+        This method fetches all trade execution records (fills) for a specific
+        order, identified by its order ID.
+
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC_USDT")
+            order_id: Exchange-assigned order ID
+            from_id: Start from this fill ID for pagination (optional)
+
+        Returns:
+            List of Fill objects for the specified order
+
+        Raises:
+            PionexAPIError: If the API request fails (e.g., order not found,
+                authentication error)
+
+        Requirements:
+            - 2.2: Retrieve fills for a specific orderId from GET /api/v1/trade/fillsByOrderId
+
+        Example:
+            >>> async with PionexClient(api_key="key", api_secret="secret") as client:
+            ...     fills = await client.get_fills_by_order_id("BTC_USDT", 123456789)
+            ...     for fill in fills:
+            ...         print(f"Fill {fill.id}: {fill.role.value} {fill.size} @ {fill.price}")
+        """
+        params: dict[str, Any] = {
+            "symbol": symbol,
+            "orderId": order_id,
+        }
+
+        if from_id is not None:
+            params["fromId"] = from_id
+
+        logger.debug(f"Getting fills for order {order_id} on {symbol}")
+
+        response = await self._request(
+            method="GET",
+            endpoint="/api/v1/trade/fillsByOrderId",
+            params=params,
+            authenticated=True,
+        )
+
+        fills: list[Fill] = []
+        fills_data = response.get("fills", [])
+
+        for item in fills_data:
+            try:
+                fill = Fill.from_api_response(item)
+                fills.append(fill)
+            except (KeyError, ValueError) as e:
+                logger.warning(f"Failed to parse fill: {item}. Error: {e}")
+                continue
+
+        logger.debug(f"Retrieved {len(fills)} fills for order {order_id}")
+
+        return fills
+
+    # =========================================================================
+    # Ticker Methods
+    # =========================================================================
+
+    async def get_24hr_tickers(
+        self,
+        symbol: str | None = None,
+        market_type: str = "SPOT",
+    ) -> list[Ticker24hr]:
+        """
+        Retrieve 24-hour ticker statistics.
+
+        This method fetches 24-hour rolling window price statistics for
+        trading pairs. Can retrieve data for a specific symbol or all symbols.
+
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC_USDT"). If None, returns all tickers.
+            market_type: Market type filter ("SPOT" or "PERP"). Default: "SPOT"
+
+        Returns:
+            List of Ticker24hr objects with 24-hour price statistics
+
+        Raises:
+            PionexAPIError: If the API request fails
+
+        Requirements:
+            - 3.1: Retrieve ticker data from GET /api/v1/market/tickers
+            - 3.3: 24hr ticker includes all fields and change calculation
+
+        Example:
+            >>> async with PionexClient(api_key="key", api_secret="secret") as client:
+            ...     # Get all tickers
+            ...     tickers = await client.get_24hr_tickers()
+            ...     for ticker in tickers:
+            ...         print(f"{ticker.symbol}: {ticker.change_percent:.2f}%")
+            ...
+            ...     # Get specific ticker
+            ...     btc_tickers = await client.get_24hr_tickers(symbol="BTC_USDT")
+        """
+        params: dict[str, Any] = {}
+
+        if symbol is not None:
+            params["symbol"] = symbol
+
+        if market_type:
+            params["marketType"] = market_type
+
+        logger.debug(f"Getting 24hr tickers (symbol={symbol}, market_type={market_type})")
+
+        response = await self._request(
+            method="GET",
+            endpoint="/api/v1/market/tickers",
+            params=params,
+            authenticated=False,  # Public endpoint
+        )
+
+        tickers: list[Ticker24hr] = []
+        tickers_data = response.get("tickers", [])
+
+        for item in tickers_data:
+            try:
+                ticker = Ticker24hr.from_api_response(item)
+                tickers.append(ticker)
+            except (KeyError, ValueError) as e:
+                logger.warning(f"Failed to parse ticker: {item}. Error: {e}")
+                continue
+
+        logger.debug(f"Retrieved {len(tickers)} 24hr tickers")
+
+        return tickers
+
+    async def get_book_tickers(
+        self,
+        symbol: str | None = None,
+        market_type: str = "SPOT",
+    ) -> list[BookTicker]:
+        """
+        Retrieve best bid/ask prices (book tickers).
+
+        This method fetches the current best bid and ask prices and quantities
+        for trading pairs. Can retrieve data for a specific symbol or all symbols.
+
+        Args:
+            symbol: Trading pair symbol (e.g., "BTC_USDT"). If None, returns all book tickers.
+            market_type: Market type filter ("SPOT" or "PERP"). Default: "SPOT"
+
+        Returns:
+            List of BookTicker objects with best bid/ask prices
+
+        Raises:
+            PionexAPIError: If the API request fails
+
+        Requirements:
+            - 3.2: Retrieve best bid/ask from GET /api/v1/market/bookTickers
+            - 3.4: Book ticker includes all fields and spread calculation
+
+        Example:
+            >>> async with PionexClient(api_key="key", api_secret="secret") as client:
+            ...     # Get all book tickers
+            ...     book_tickers = await client.get_book_tickers()
+            ...     for bt in book_tickers:
+            ...         print(f"{bt.symbol}: spread={bt.spread}")
+            ...
+            ...     # Get specific book ticker
+            ...     btc_book = await client.get_book_tickers(symbol="BTC_USDT")
+        """
+        params: dict[str, Any] = {}
+
+        if symbol is not None:
+            params["symbol"] = symbol
+
+        if market_type:
+            params["marketType"] = market_type
+
+        logger.debug(f"Getting book tickers (symbol={symbol}, market_type={market_type})")
+
+        response = await self._request(
+            method="GET",
+            endpoint="/api/v1/market/bookTickers",
+            params=params,
+            authenticated=False,  # Public endpoint
+        )
+
+        book_tickers: list[BookTicker] = []
+        tickers_data = response.get("tickers", [])
+
+        for item in tickers_data:
+            try:
+                book_ticker = BookTicker.from_api_response(item)
+                book_tickers.append(book_ticker)
+            except (KeyError, ValueError) as e:
+                logger.warning(f"Failed to parse book ticker: {item}. Error: {e}")
+                continue
+
+        logger.debug(f"Retrieved {len(book_tickers)} book tickers")
+
+        return book_tickers
 
     # =========================================================================
     # Bot Management Methods

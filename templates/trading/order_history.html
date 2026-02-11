@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}Order History - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+    <!-- Page Header -->
+    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">Order History</h1>
+            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">All orders including open and closed. Use filters to find specific orders by symbol, status, or date range.</span>
+            </span>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'trading:order_list' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 shadow-sm transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                View Open Orders
+            </a>
+        </div>
+    </div>
+
+    <!-- Error Alert -->
+    {% if error_message %}
+    <div class="mb-6 rounded-lg border border-red-200 bg-red-900/20 p-4">
+        <div class="flex">
+            <svg class="h-5 w-5 flex-shrink-0 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+            </svg>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-red-400">{{ error_message }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Summary Bar -->
+    <div class="mb-6 flex flex-wrap items-center gap-6 rounded-xl border border-slate-700 bg-slate-800 px-4 py-4 sm:px-6">
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-slate-400">Total Orders</span>
+            <span class="text-lg font-semibold text-slate-100">{{ order_count }}</span>
+        </div>
+        {% if current_symbol %}
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-slate-400">Symbol</span>
+            <span class="inline-flex items-center rounded-full bg-indigo-900/50 px-2.5 py-0.5 text-xs font-medium text-indigo-400">{{ current_symbol }}</span>
+        </div>
+        {% endif %}
+        {% if current_status %}
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-slate-400">Status</span>
+            <span class="inline-flex items-center rounded-full {% if current_status == 'OPEN' %}bg-sky-900/50 text-sky-400{% else %}bg-slate-600 text-slate-300{% endif %} px-2.5 py-0.5 text-xs font-medium">{{ current_status }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Filters -->
+    <form method="get" class="mb-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h3 class="text-lg font-semibold text-slate-100">Filters</h3>
+        </div>
+        <div class="px-4 py-5 sm:px-6">
+            <div class="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+                <div>
+                    <label for="symbol" class="block text-sm font-medium text-slate-300">Trading Pair</label>
+                    <select name="symbol" id="symbol" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                        <option value="">All Pairs</option>
+                        {% for pair in trading_pairs %}
+                        <option value="{{ pair.symbol }}" {% if current_symbol == pair.symbol %}selected{% endif %}>{{ pair.symbol }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="status" class="block text-sm font-medium text-slate-300">Status</label>
+                    <select name="status" id="status" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                        <option value="">All Statuses</option>
+                        <option value="OPEN" {% if current_status == "OPEN" %}selected{% endif %}>Open</option>
+                        <option value="CLOSED" {% if current_status == "CLOSED" %}selected{% endif %}>Closed</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label for="start_date" class="block text-sm font-medium text-slate-300">Start Date</label>
+                    <input type="date" name="start_date" id="start_date" value="{{ start_date }}" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                </div>
+                
+                <div>
+                    <label for="end_date" class="block text-sm font-medium text-slate-300">End Date</label>
+                    <input type="date" name="end_date" id="end_date" value="{{ end_date }}" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                </div>
+                
+                <div class="col-span-2 flex items-end gap-2">
+                    <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                        Filter
+                    </button>
+                    <a href="{% url 'trading:order_history' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 shadow-sm transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                        Clear
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Orders Table -->
+    <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-700">
+                <thead class="bg-slate-700/50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Symbol</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Side</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Type</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Price</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Size</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Filled</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Fee</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Created</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700">
+                    {% for order in orders %}
+                    <tr class="transition-colors hover:bg-slate-700/50">
+                        <td class="whitespace-nowrap px-4 py-4 text-sm">
+                            <a href="{% url 'trading:order_detail' symbol=order.symbol order_id=order.order_id %}" class="font-medium text-indigo-400 hover:text-indigo-300">
+                                {{ order.symbol }}
+                            </a>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm">
+                            <span class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold {% if order.side.value == 'BUY' %}bg-emerald-900/50 text-emerald-400{% else %}bg-red-900/50 text-red-400{% endif %}">
+                                <span class="h-1.5 w-1.5 rounded-full {% if order.side.value == 'BUY' %}bg-emerald-400{% else %}bg-red-400{% endif %}"></span>
+                                {{ order.side.value }}
+                            </span>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-300">{{ order.order_type.value }}</td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm font-medium text-slate-100">{{ order.price }}</td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-300">{{ order.size }}</td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-300">{{ order.filled_size }}</td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-400">
+                            {% if order.fee %}{{ order.fee }} {{ order.fee_coin }}{% else %}-{% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-center text-sm">
+                            {% if order.status.value == 'OPEN' %}
+                            <span class="inline-flex items-center rounded-full bg-sky-900/50 px-2.5 py-0.5 text-xs font-medium text-sky-400">{{ order.status.value }}</span>
+                            {% else %}
+                            <span class="inline-flex items-center rounded-full bg-slate-600 px-2.5 py-0.5 text-xs font-medium text-slate-300">{{ order.status.value }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-400">{{ order.create_time|date:"M d, H:i" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-4 py-8 text-center text-sm text-slate-500">No orders found matching your criteria.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

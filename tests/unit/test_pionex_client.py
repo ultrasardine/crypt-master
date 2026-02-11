@@ -813,7 +813,11 @@ class TestErrorHandling:
 
     @pytest.mark.asyncio
     async def test_rate_limit_respects_retry_after(self) -> None:
-        """Test rate limit error respects Retry-After header."""
+        """Test rate limit error triggers 60-second ban via rate limiter.
+
+        Requirements:
+            - 4.4: Wait 60 seconds on 429 response before retrying
+        """
         client = PionexClient(api_key="key", api_secret="secret")
 
         # First call rate limited, second succeeds
@@ -855,7 +859,10 @@ class TestErrorHandling:
                 symbols = await client.get_symbols()
 
         assert call_count == 2
-        assert 5 in sleep_times  # Should have waited 5 seconds from Retry-After
+        # Rate limiter enforces 60-second ban on 429 (Requirement 4.4)
+        # The sleep time should be approximately 60 seconds
+        assert len(sleep_times) >= 1
+        assert any(55 <= t <= 65 for t in sleep_times)  # Allow some tolerance
 
 
 class TestGetBalances:

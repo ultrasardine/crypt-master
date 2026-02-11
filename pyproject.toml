@@ -44,6 +44,7 @@ dependencies = [
     "structlog>=24.4",
     "cryptography>=46.0.4",
     "django-celery-beat>=2.8.1",
+    "websockets>=16.0",
 ]
 
 [project.optional-dependencies]

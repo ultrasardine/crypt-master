@@ -509,6 +509,416 @@ class PionexAPIError(Exception):
 
 
 # =========================================================================
+# Extended Order and Trade Models
+# =========================================================================
+
+
+class OrderDetailStatus(Enum):
+    """Status of an order in the extended order detail response."""
+
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
+
+
+class FillRole(Enum):
+    """Role in a trade execution (maker or taker)."""
+
+    TAKER = "TAKER"
+    MAKER = "MAKER"
+
+
+@dataclass(frozen=True)
+class OrderDetail:
+    """
+    Extended order information from Pionex API.
+
+    This model contains all fields returned by the order query endpoints
+    including GET /api/v1/trade/order and GET /api/v1/trade/openOrders.
+
+    Attributes:
+        order_id: Unique order identifier assigned by the exchange
+        symbol: Trading pair symbol (e.g., "BTC_USDT")
+        order_type: Type of order (LIMIT or MARKET)
+        side: Order side (BUY or SELL)
+        price: Order price
+        size: Order size in base currency
+        amount: Order amount in quote currency (for market buy orders)
+        filled_size: Amount of base currency that has been filled
+        filled_amount: Amount of quote currency that has been filled
+        fee: Total fee paid
+        fee_coin: Currency in which fee was paid
+        status: Order status (OPEN or CLOSED)
+        ioc: Whether this is an Immediate-Or-Cancel order
+        client_order_id: Client-defined order ID (if provided)
+        source: Order source (MANUAL or API)
+        create_time: When the order was created
+        update_time: When the order was last updated
+
+    Requirements:
+        - 1.7: Order response includes all fields
+    """
+
+    order_id: int
+    symbol: str
+    order_type: OrderType
+    side: OrderSide
+    price: Decimal
+    size: Decimal
+    amount: Decimal | None
+    filled_size: Decimal
+    filled_amount: Decimal
+    fee: Decimal
+    fee_coin: str
+    status: OrderDetailStatus
+    ioc: bool
+    client_order_id: str | None
+    source: str
+    create_time: datetime
+    update_time: datetime
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any]) -> OrderDetail:
+        """
+        Create an OrderDetail from API response data.
+
+        Args:
+            data: Dictionary containing order data from the API
+
+        Returns:
+            OrderDetail instance
+        """
+        # Parse side
+        side_str = data.get("side", "BUY").upper()
+        side = OrderSide.BUY if side_str == "BUY" else OrderSide.SELL
+
+        # Parse order type
+        type_str = data.get("type", "LIMIT").upper()
+        order_type = OrderType.MARKET if type_str == "MARKET" else OrderType.LIMIT
+
+        # Parse status
+        status_str = data.get("status", "OPEN").upper()
+        try:
+            status = OrderDetailStatus(status_str)
+        except ValueError:
+            status = OrderDetailStatus.OPEN
+
+        # Parse timestamps
+        create_time_ms = data.get("createTime", 0)
+        update_time_ms = data.get("updateTime", create_time_ms)
+        create_time = datetime.fromtimestamp(int(create_time_ms) / 1000, tz=UTC)
+        update_time = datetime.fromtimestamp(int(update_time_ms) / 1000, tz=UTC)
+
+        # Parse amount (may be None for non-market-buy orders)
+        amount_str = data.get("amount")
+        amount = Decimal(str(amount_str)) if amount_str else None
+
+        return cls(
+            order_id=int(data.get("orderId", 0)),
+            symbol=data.get("symbol", ""),
+            order_type=order_type,
+            side=side,
+            price=Decimal(str(data.get("price", "0"))),
+            size=Decimal(str(data.get("size", "0"))),
+            amount=amount,
+            filled_size=Decimal(str(data.get("filledSize", "0"))),
+            filled_amount=Decimal(str(data.get("filledAmount", "0"))),
+            fee=Decimal(str(data.get("fee", "0"))),
+            fee_coin=data.get("feeCoin", ""),
+            status=status,
+            ioc=data.get("IOC", False),
+            client_order_id=data.get("clientOrderId"),
+            source=data.get("source", "API"),
+            create_time=create_time,
+            update_time=update_time,
+        )
+
+
+@dataclass(frozen=True)
+class Fill:
+    """
+    Trade execution record.
+
+    Represents a single fill (trade execution) from the Pionex API.
+    Fills are created when orders are matched and executed.
+
+    Attributes:
+        id: Unique fill identifier
+        order_id: ID of the order that was filled
+        symbol: Trading pair symbol
+        side: Trade side (BUY or SELL)
+        role: Role in the trade (TAKER or MAKER)
+        price: Execution price
+        size: Execution size in base currency
+        fee: Fee paid for this fill
+        fee_coin: Currency in which fee was paid
+        timestamp: When the fill occurred
+
+    Requirements:
+        - 2.3: Fill response includes all fields
+    """
+
+    id: int
+    order_id: int
+    symbol: str
+    side: OrderSide
+    role: FillRole
+    price: Decimal
+    size: Decimal
+    fee: Decimal
+    fee_coin: str
+    timestamp: datetime
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any]) -> Fill:
+        """
+        Create a Fill from API response data.
+
+        Args:
+            data: Dictionary containing fill data from the API
+
+        Returns:
+            Fill instance
+        """
+        # Parse side
+        side_str = data.get("side", "BUY").upper()
+        side = OrderSide.BUY if side_str == "BUY" else OrderSide.SELL
+
+        # Parse role
+        role_str = data.get("role", "TAKER").upper()
+        try:
+            role = FillRole(role_str)
+        except ValueError:
+            role = FillRole.TAKER
+
+        # Parse timestamp
+        timestamp_ms = data.get("timestamp", 0)
+        timestamp = datetime.fromtimestamp(int(timestamp_ms) / 1000, tz=UTC)
+
+        return cls(
+            id=int(data.get("id", 0)),
+            order_id=int(data.get("orderId", 0)),
+            symbol=data.get("symbol", ""),
+            side=side,
+            role=role,
+            price=Decimal(str(data.get("price", "0"))),
+            size=Decimal(str(data.get("size", "0"))),
+            fee=Decimal(str(data.get("fee", "0"))),
+            fee_coin=data.get("feeCoin", ""),
+            timestamp=timestamp,
+        )
+
+
+@dataclass(frozen=True)
+class Ticker24hr:
+    """
+    24-hour rolling window price statistics.
+
+    Contains price and volume statistics for a trading pair over
+    the last 24 hours.
+
+    Attributes:
+        symbol: Trading pair symbol
+        time: Timestamp of the ticker data
+        open: Opening price (24h ago)
+        close: Current/closing price
+        high: Highest price in 24h
+        low: Lowest price in 24h
+        volume: Trading volume in base currency
+        amount: Trading volume in quote currency
+        count: Number of trades in 24h
+
+    Requirements:
+        - 3.3: 24hr ticker includes all fields and change calculation
+    """
+
+    symbol: str
+    time: datetime
+    open: Decimal
+    close: Decimal
+    high: Decimal
+    low: Decimal
+    volume: Decimal
+    amount: Decimal
+    count: int
+
+    @property
+    def change_percent(self) -> float:
+        """
+        Calculate 24hr price change percentage.
+
+        Returns:
+            Price change as a percentage (e.g., 2.5 for +2.5%)
+        """
+        if self.open == 0:
+            return 0.0
+        return float((self.close - self.open) / self.open * 100)
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any]) -> Ticker24hr:
+        """
+        Create a Ticker24hr from API response data.
+
+        Args:
+            data: Dictionary containing ticker data from the API
+
+        Returns:
+            Ticker24hr instance
+        """
+        # Parse timestamp
+        time_ms = data.get("time", 0)
+        time = datetime.fromtimestamp(int(time_ms) / 1000, tz=UTC)
+
+        return cls(
+            symbol=data.get("symbol", ""),
+            time=time,
+            open=Decimal(str(data.get("open", "0"))),
+            close=Decimal(str(data.get("close", "0"))),
+            high=Decimal(str(data.get("high", "0"))),
+            low=Decimal(str(data.get("low", "0"))),
+            volume=Decimal(str(data.get("volume", "0"))),
+            amount=Decimal(str(data.get("amount", "0"))),
+            count=int(data.get("count", 0)),
+        )
+
+
+@dataclass(frozen=True)
+class BookTicker:
+    """
+    Best bid/ask prices.
+
+    Contains the current best bid and ask prices and quantities
+    for a trading pair.
+
+    Attributes:
+        symbol: Trading pair symbol
+        bid_price: Best bid price
+        bid_size: Size at best bid
+        ask_price: Best ask price
+        ask_size: Size at best ask
+        timestamp: When this data was captured
+
+    Requirements:
+        - 3.4: Book ticker includes all fields and spread calculation
+    """
+
+    symbol: str
+    bid_price: Decimal
+    bid_size: Decimal
+    ask_price: Decimal
+    ask_size: Decimal
+    timestamp: datetime
+
+    @property
+    def spread(self) -> Decimal:
+        """
+        Calculate bid-ask spread.
+
+        Returns:
+            The difference between ask and bid prices
+        """
+        return self.ask_price - self.bid_price
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any]) -> BookTicker:
+        """
+        Create a BookTicker from API response data.
+
+        Args:
+            data: Dictionary containing book ticker data from the API
+
+        Returns:
+            BookTicker instance
+        """
+        # Parse timestamp
+        timestamp_ms = data.get("timestamp", data.get("time", 0))
+        timestamp = datetime.fromtimestamp(int(timestamp_ms) / 1000, tz=UTC)
+
+        return cls(
+            symbol=data.get("symbol", ""),
+            bid_price=Decimal(str(data.get("bidPrice", "0"))),
+            bid_size=Decimal(str(data.get("bidSize", "0"))),
+            ask_price=Decimal(str(data.get("askPrice", "0"))),
+            ask_size=Decimal(str(data.get("askSize", "0"))),
+            timestamp=timestamp,
+        )
+
+
+@dataclass
+class MassOrderRequest:
+    """
+    Request for batch order creation.
+
+    Used to submit multiple orders in a single API call to
+    POST /api/v1/trade/massOrder.
+
+    Attributes:
+        side: Order side (BUY or SELL)
+        price: Order price
+        size: Order size in base currency
+        client_order_id: Optional client-defined order ID
+
+    Requirements:
+        - 1.5: Mass order request parameters
+    """
+
+    side: OrderSide
+    price: Decimal
+    size: Decimal
+    client_order_id: str | None = None
+
+    def to_api_params(self) -> dict[str, Any]:
+        """
+        Convert to API request parameters.
+
+        Returns:
+            Dictionary of parameters for the API request
+        """
+        params: dict[str, Any] = {
+            "side": self.side.value,
+            "price": str(self.price),
+            "size": str(self.size),
+        }
+        if self.client_order_id:
+            params["clientOrderId"] = self.client_order_id
+        return params
+
+
+@dataclass(frozen=True)
+class MassOrderResult:
+    """
+    Result from batch order creation.
+
+    Represents the result of a single order in a mass order request.
+
+    Attributes:
+        order_id: Unique order identifier assigned by the exchange
+        client_order_id: Client-defined order ID (if provided)
+
+    Requirements:
+        - 1.5: Mass order result fields
+    """
+
+    order_id: int
+    client_order_id: str | None
+
+    @classmethod
+    def from_api_response(cls, data: dict[str, Any]) -> MassOrderResult:
+        """
+        Create a MassOrderResult from API response data.
+
+        Args:
+            data: Dictionary containing order result from the API
+
+        Returns:
+            MassOrderResult instance
+        """
+        return cls(
+            order_id=int(data.get("orderId", 0)),
+            client_order_id=data.get("clientOrderId"),
+        )
+
+
+# =========================================================================
 # Bot Management Models
 # =========================================================================
 

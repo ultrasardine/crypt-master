@@ -119,6 +119,12 @@ class DashboardWebSocket {
                 case 'trade_executed':
                     this.handleTradeExecuted(data);
                     break;
+                case 'rate_limit_update':
+                    this.handleRateLimitUpdate(data);
+                    break;
+                case 'rate_limit_alert':
+                    this.handleRateLimitAlert(data);
+                    break;
                 case 'pong':
                     // Ping response received
                     break;
@@ -716,6 +722,224 @@ class DashboardWebSocket {
         const element = document.querySelector(selector);
         if (element) {
             element.textContent = value;
+        }
+    }
+    
+    /**
+     * Handle rate limit update message
+     * Requirements: 4.6 - Expose current usage metrics via dashboard
+     */
+    handleRateLimitUpdate(data) {
+        console.log('[WebSocket] Rate limit update:', data);
+        
+        // Update IP usage bar and percentage
+        const ipUsagePercent = document.getElementById('ip-usage-percent');
+        const ipUsageBar = document.getElementById('ip-usage-bar');
+        
+        if (ipUsagePercent) {
+            ipUsagePercent.textContent = `${data.ip_usage_percent}%`;
+            ipUsagePercent.classList.remove('text-emerald-400', 'text-amber-400', 'text-red-400');
+            if (data.ip_usage_percent >= 80) {
+                ipUsagePercent.classList.add('text-red-400');
+            } else if (data.ip_usage_percent >= 50) {
+                ipUsagePercent.classList.add('text-amber-400');
+            } else {
+                ipUsagePercent.classList.add('text-emerald-400');
+            }
+        }
+        
+        if (ipUsageBar) {
+            ipUsageBar.style.width = `${data.ip_usage_percent}%`;
+            ipUsageBar.classList.remove('bg-emerald-500', 'bg-amber-500', 'bg-red-500');
+            if (data.ip_usage_percent >= 80) {
+                ipUsageBar.classList.add('bg-red-500');
+            } else if (data.ip_usage_percent >= 50) {
+                ipUsageBar.classList.add('bg-amber-500');
+            } else {
+                ipUsageBar.classList.add('bg-emerald-500');
+            }
+        }
+        
+        // Update Account usage bar and percentage
+        const accountUsagePercent = document.getElementById('account-usage-percent');
+        const accountUsageBar = document.getElementById('account-usage-bar');
+        
+        if (accountUsagePercent) {
+            accountUsagePercent.textContent = `${data.account_usage_percent}%`;
+            accountUsagePercent.classList.remove('text-emerald-400', 'text-amber-400', 'text-red-400');
+            if (data.account_usage_percent >= 80) {
+                accountUsagePercent.classList.add('text-red-400');
+            } else if (data.account_usage_percent >= 50) {
+                accountUsagePercent.classList.add('text-amber-400');
+            } else {
+                accountUsagePercent.classList.add('text-emerald-400');
+            }
+        }
+        
+        if (accountUsageBar) {
+            accountUsageBar.style.width = `${data.account_usage_percent}%`;
+            accountUsageBar.classList.remove('bg-emerald-500', 'bg-amber-500', 'bg-red-500');
+            if (data.account_usage_percent >= 80) {
+                accountUsageBar.classList.add('bg-red-500');
+            } else if (data.account_usage_percent >= 50) {
+                accountUsageBar.classList.add('bg-amber-500');
+            } else {
+                accountUsageBar.classList.add('bg-emerald-500');
+            }
+        }
+        
+        // Update status badge
+        this.updateRateLimitStatus(data.status, data.status_message);
+        
+        // Update status message
+        const rateLimitMessage = document.getElementById('rate-limit-message');
+        if (rateLimitMessage) {
+            rateLimitMessage.textContent = data.status_message;
+        }
+        
+        // Update ban remaining if rate limited
+        if (data.is_banned) {
+            const banRemaining = document.getElementById('ban-remaining');
+            if (banRemaining) {
+                banRemaining.textContent = Math.ceil(data.ban_remaining);
+            }
+        }
+        
+        // Update or show/hide alert banner
+        this.updateRateLimitAlert(data);
+    }
+    
+    /**
+     * Handle rate limit alert message
+     * Requirements: 4.5 - Show warning when approaching limits, error when rate limited
+     */
+    handleRateLimitAlert(data) {
+        console.log('[WebSocket] Rate limit alert:', data);
+        
+        // Show notification
+        const notificationType = data.level === 'error' ? 'error' : 'warning';
+        this.showNotification(notificationType, data.title, data.message);
+        
+        // Update status badge
+        this.updateRateLimitStatus(data.level === 'error' ? 'error' : 'warning', data.message);
+    }
+    
+    /**
+     * Update rate limit status badge
+     */
+    updateRateLimitStatus(status, message) {
+        const statusBadge = document.getElementById('rate-limit-status');
+        const statusBadgeHeader = document.getElementById('rate-limit-status-badge');
+        
+        const statusConfig = {
+            'ok': {
+                classes: 'bg-emerald-900/50 text-emerald-400',
+                dotClass: 'bg-emerald-400',
+                icon: '<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>',
+                label: 'Healthy'
+            },
+            'warning': {
+                classes: 'bg-amber-900/50 text-amber-400',
+                dotClass: 'bg-amber-400',
+                icon: '<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>',
+                label: 'Warning'
+            },
+            'error': {
+                classes: 'bg-red-900/50 text-red-400',
+                dotClass: 'bg-red-400',
+                icon: '<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>',
+                label: 'Rate Limited'
+            },
+            'unknown': {
+                classes: 'bg-slate-700 text-slate-400',
+                dotClass: 'bg-slate-500',
+                icon: '<svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>',
+                label: 'Unknown'
+            }
+        };
+        
+        const config = statusConfig[status] || statusConfig['unknown'];
+        
+        // Update main status badge
+        if (statusBadge) {
+            statusBadge.className = `inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${config.classes}`;
+            statusBadge.innerHTML = `${config.icon} ${config.label}`;
+        }
+        
+        // Update header status badge
+        if (statusBadgeHeader) {
+            statusBadgeHeader.className = `inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium ${config.classes}`;
+            const dot = statusBadgeHeader.querySelector('span');
+            if (dot) {
+                dot.className = `h-2 w-2 rounded-full ${config.dotClass}`;
+            }
+        }
+    }
+    
+    /**
+     * Update rate limit alert banner
+     */
+    updateRateLimitAlert(data) {
+        const widgetContainer = document.getElementById('rate-limit-widget');
+        
+        if (!widgetContainer) return;
+        
+        // Find existing alert container
+        let existingAlert = widgetContainer.querySelector('#rate-limit-alert');
+        
+        if (data.status === 'error') {
+            // Show error alert
+            const alertHtml = `
+                <div id="rate-limit-alert" class="mt-4 rounded-lg border border-red-500/50 bg-red-900/20 p-3">
+                    <div class="flex items-start gap-3">
+                        <svg class="h-5 w-5 flex-shrink-0 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <div>
+                            <p class="text-sm font-medium text-red-400">Rate Limited</p>
+                            <p class="mt-1 text-xs text-red-300/80">API requests are temporarily blocked. Remaining: <span id="ban-remaining" class="font-semibold">${Math.ceil(data.ban_remaining)}</span> seconds</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            if (existingAlert) {
+                existingAlert.outerHTML = alertHtml;
+            } else {
+                const statusMessage = widgetContainer.querySelector('.mt-3.flex');
+                if (statusMessage) {
+                    statusMessage.insertAdjacentHTML('beforebegin', alertHtml);
+                }
+            }
+        } else if (data.status === 'warning') {
+            // Show warning alert
+            const alertHtml = `
+                <div id="rate-limit-alert" class="mt-4 rounded-lg border border-amber-500/50 bg-amber-900/20 p-3">
+                    <div class="flex items-start gap-3">
+                        <svg class="h-5 w-5 flex-shrink-0 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                        </svg>
+                        <div>
+                            <p class="text-sm font-medium text-amber-400">Approaching Rate Limits</p>
+                            <p class="mt-1 text-xs text-amber-300/80">API usage is high. Consider reducing request frequency to avoid being rate limited.</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            if (existingAlert) {
+                existingAlert.outerHTML = alertHtml;
+            } else {
+                const statusMessage = widgetContainer.querySelector('.mt-3.flex');
+                if (statusMessage) {
+                    statusMessage.insertAdjacentHTML('beforebegin', alertHtml);
+                }
+            }
+        } else {
+            // Remove alert if status is ok
+            if (existingAlert) {
+                existingAlert.remove();
+            }
         }
     }
     

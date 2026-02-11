@@ -166,6 +166,91 @@ setInterval(updateServiceHealth, 30000);
 updateServiceHealth(); // Initial load
 ```
 
+## Pionex API Health Check (CLI)
+
+A management command is available to verify Pionex API credentials and connectivity:
+
+```bash
+# Basic check (tests public endpoint only)
+uv run python manage.py pionex_healthcheck
+
+# Verbose output with sample data
+uv run python manage.py pionex_healthcheck -v
+
+# Test authenticated endpoints
+uv run python manage.py pionex_healthcheck --test-balances --test-bots
+
+# Full check with all options
+uv run python manage.py pionex_healthcheck -v --test-balances --test-bots
+```
+
+### Options
+
+| Flag | Description |
+|------|-------------|
+| `-v, --verbose` | Show detailed response information |
+| `--test-balances` | Test fetching account balances (requires read permissions) |
+| `--test-bots` | Test fetching bot list (requires bot permissions) |
+
+### Output
+
+The command displays:
+- Environment configuration (masked API key, trading mode)
+- Public endpoint test (symbol retrieval)
+- Authenticated endpoint tests (if requested)
+- Helpful error messages with troubleshooting suggestions
+
+### Common Issues
+
+| Error | Possible Cause |
+|-------|----------------|
+| 401 / INVALID_SIGNATURE | Incorrect API secret or system clock drift |
+| 403 / Permission denied | API key lacks required permissions or IP not whitelisted |
+| 429 | Rate limit exceeded, wait and retry |
+| 5xx | Pionex API issues, check status page |
+
+## Data Flow Diagnostic Script
+
+For comprehensive troubleshooting of data flow issues, use the diagnostic script:
+
+```bash
+uv run python scripts/diagnose_data_flow.py
+```
+
+### What It Checks
+
+1. **Database Data**: Users, profiles, portfolio snapshots, market context, trading pairs, bots, signals, and trades
+2. **User API Keys**: Verifies admin user has encrypted API keys configured and can decrypt them
+3. **Pionex API Connection**: Tests public endpoints (symbols), authenticated endpoints (balances), and bot API
+4. **Sync Services**: Verifies sync services are available and lists registered Celery sync tasks
+
+### Example Output
+
+```
+============================================================
+DATABASE DATA CHECK
+============================================================
+Users: 1
+  - admin (id=1, is_staff=True)
+    Profile: api_key=True, api_secret=True
+    Active pairs: ['BTC_USDT', 'ETH_USDT']
+
+Portfolio Snapshots: 24
+  Latest: 2026-02-11 10:30:00 - $12,345.67
+
+Market Context Snapshots: 48
+  Latest: 2026-02-11 10:15:00 - Regime: RISK_ON
+...
+```
+
+### When to Use
+
+- Initial setup verification
+- Debugging missing data in the dashboard
+- Verifying API key configuration
+- Checking Pionex connectivity issues
+- Confirming Celery tasks are registered
+
 ## Requirements
 
 This endpoint satisfies requirement 8.5:

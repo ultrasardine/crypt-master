@@ -114,19 +114,16 @@ class PortfolioSyncService:
                 )
 
                 # Calculate allocated to bots (sum of invested amounts in active bots)
-                allocated_to_bots = (
-                    Bot.objects.for_user(user)
-                    .active()
-                    .live()
-                    .total_invested()
-                )
+                from asgiref.sync import sync_to_async
+
+                allocated_to_bots = await sync_to_async(
+                    lambda: Bot.objects.for_user(user).active().live().total_invested()
+                )()
 
                 # Get previous high water mark
-                previous_snapshot = (
-                    PortfolioSnapshot.objects.for_user(user)
-                    .live()
-                    .first()
-                )
+                previous_snapshot = await sync_to_async(
+                    lambda: PortfolioSnapshot.objects.for_user(user).live().first()
+                )()
 
                 if previous_snapshot:
                     high_water_mark = previous_snapshot.high_water_mark
@@ -142,7 +139,7 @@ class PortfolioSyncService:
                 drawdown = self._calculate_drawdown(total_value, high_water_mark)
 
                 # Create PortfolioSnapshot
-                snapshot = PortfolioSnapshot.objects.create(
+                snapshot = await sync_to_async(PortfolioSnapshot.objects.create)(
                     user=user,
                     total_value=total_value,
                     available_balance=available_balance,

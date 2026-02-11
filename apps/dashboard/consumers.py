@@ -272,6 +272,48 @@ class DashboardConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps(event))
 
     # -------------------------------------------------------------------------
+    # Rate Limit Updates
+    # -------------------------------------------------------------------------
+
+    async def rate_limit_update(self, event: dict[str, Any]) -> None:
+        """
+        Send rate limit update to WebSocket.
+
+        Event data:
+            - type: "rate_limit_update"
+            - ip_usage: IP weight usage ratio (0-1)
+            - account_usage: Account weight usage ratio (0-1)
+            - ip_usage_percent: IP usage as percentage (0-100)
+            - account_usage_percent: Account usage as percentage (0-100)
+            - is_banned: Whether currently rate limited
+            - ban_remaining: Seconds remaining in ban
+            - status: Overall status (ok, warning, error)
+            - status_message: Human-readable status message
+            - timestamp: Update timestamp
+
+        Requirements:
+            - 4.6: Expose current usage metrics via dashboard
+        """
+        await self.send(text_data=json.dumps(event))
+
+    async def rate_limit_alert(self, event: dict[str, Any]) -> None:
+        """
+        Send rate limit alert to WebSocket.
+
+        Event data:
+            - type: "rate_limit_alert"
+            - level: Alert level (warning, error)
+            - title: Alert title
+            - message: Alert message
+            - ban_remaining: Seconds remaining in ban (if rate limited)
+            - timestamp: Alert timestamp
+
+        Requirements:
+            - 4.5: Log rate limit events and notify via WebSocket alert
+        """
+        await self.send(text_data=json.dumps(event))
+
+    # -------------------------------------------------------------------------
     # Market Context Updates
     # -------------------------------------------------------------------------
 

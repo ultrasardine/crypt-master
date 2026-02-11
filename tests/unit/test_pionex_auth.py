@@ -3,7 +3,7 @@ Unit tests for Pionex API Authentication Module.
 
 Tests the PionexAuthenticator class for:
 - Timestamp generation
-- HMAC-SHA256 signature computation
+- HMAC-SHA256 signature computation (with method + path + query string)
 - Query string building
 - Authentication header generation
 """
@@ -106,36 +106,131 @@ class TestSignatureComputation:
     def test_compute_signature_returns_hex_string(self) -> None:
         """Test signature is a hexadecimal string."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
-        signature = auth.compute_signature("test_query_string")
+        signature = auth.compute_signature(
+            method="GET",
+            path="/api/v1/account/balances",
+            query_string="timestamp=1234567890000",
+        )
 
         # Should be 64 hex characters (256 bits = 32 bytes = 64 hex chars)
         assert len(signature) == 64
         assert all(c in "0123456789abcdef" for c in signature)
 
-    def test_compute_signature_matches_manual_hmac(self) -> None:
-        """Test signature matches manually computed HMAC-SHA256."""
+    def test_compute_signature_includes_method_and_path(self) -> None:
+        """Test signature is computed over method + path + query string."""
         api_secret = "my_secret_key"
+        method = "GET"
+        path = "/api/v1/account/balances"
         query_string = "symbol=BTC_USDT&timestamp=1234567890000"
 
         auth = PionexAuthenticator(api_key="key", api_secret=api_secret)
-        signature = auth.compute_signature(query_string)
+        signature = auth.compute_signature(
+            method=method,
+            path=path,
+            query_string=query_string,
+        )
 
-        # Compute expected signature manually
+        # Compute expected signature manually: METHOD + PATH + ? + QUERY_STRING
+        message = f"{method}{path}?{query_string}"
         expected = hmac.new(
             key=api_secret.encode("utf-8"),
-            msg=query_string.encode("utf-8"),
+            msg=message.encode("utf-8"),
             digestmod=hashlib.sha256,
         ).hexdigest()
 
         assert signature == expected
 
+    def test_compute_signature_includes_body_for_post(self) -> None:
+        """Test signature includes body for POST requests per Pionex docs."""
+        api_secret = "my_secret_key"
+        method = "POST"
+        path = "/api/v1/trade/order"
+        query_string = "timestamp=1234567890000"
+        body = '{"side":"BUY","symbol":"BTC_USDT"}'
+
+        auth = PionexAuthenticator(api_key="key", api_secret=api_secret)
+        signature = auth.compute_signature(
+            method=method,
+            path=path,
+            query_string=query_string,
+            body=body,
+        )
+
+        # Compute expected: METHOD + PATH + ? + QUERY_STRING + BODY
+        message = f"{method}{path}?{query_string}{body}"
+        expected = hmac.new(
+            key=api_secret.encode("utf-8"),
+            msg=message.encode("utf-8"),
+            digestmod=hashlib.sha256,
+        ).hexdigest()
+
+        assert signature == expected
+
+    def test_compute_signature_includes_body_for_delete(self) -> None:
+        """Test signature includes body for DELETE requests per Pionex docs."""
+        api_secret = "my_secret_key"
+        method = "DELETE"
+        path = "/api/v1/trade/order"
+        query_string = "timestamp=1234567890000"
+        body = '{"orderId":"12345"}'
+
+        auth = PionexAuthenticator(api_key="key", api_secret=api_secret)
+        signature = auth.compute_signature(
+            method=method,
+            path=path,
+            query_string=query_string,
+            body=body,
+        )
+
+        # Compute expected: METHOD + PATH + ? + QUERY_STRING + BODY
+        message = f"{method}{path}?{query_string}{body}"
+        expected = hmac.new(
+            key=api_secret.encode("utf-8"),
+            msg=message.encode("utf-8"),
+            digestmod=hashlib.sha256,
+        ).hexdigest()
+
+        assert signature == expected
+
+    def test_compute_signature_no_body_for_get(self) -> None:
+        """Test GET requests don't include body even if provided."""
+        api_secret = "my_secret_key"
+        method = "GET"
+        path = "/api/v1/account/balances"
+        query_string = "timestamp=1234567890000"
+        body = '{"ignored":"value"}'
+
+        auth = PionexAuthenticator(api_key="key", api_secret=api_secret)
+        signature_with_body = auth.compute_signature(
+            method=method,
+            path=path,
+            query_string=query_string,
+            body=body,
+        )
+        signature_without_body = auth.compute_signature(
+            method=method,
+            path=path,
+            query_string=query_string,
+            body=None,
+        )
+
+        # GET should ignore body
+        assert signature_with_body == signature_without_body
+
     def test_compute_signature_deterministic(self) -> None:
         """Test same inputs produce same signature."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
-        query_string = "param1=value1&param2=value2"
 
-        sig1 = auth.compute_signature(query_string)
-        sig2 = auth.compute_signature(query_string)
+        sig1 = auth.compute_signature(
+            method="GET",
+            path="/api/v1/test",
+            query_string="param1=value1&param2=value2",
+        )
+        sig2 = auth.compute_signature(
+            method="GET",
+            path="/api/v1/test",
+            query_string="param1=value1&param2=value2",
+        )
 
         assert sig1 == sig2
 
@@ -143,10 +238,39 @@ class TestSignatureComputation:
         """Test different secrets produce different signatures."""
         auth1 = PionexAuthenticator(api_key="key", api_secret="secret1")
         auth2 = PionexAuthenticator(api_key="key", api_secret="secret2")
-        query_string = "test=value"
 
-        sig1 = auth1.compute_signature(query_string)
-        sig2 = auth2.compute_signature(query_string)
+        sig1 = auth1.compute_signature(
+            method="GET", path="/api/v1/test", query_string="test=value"
+        )
+        sig2 = auth2.compute_signature(
+            method="GET", path="/api/v1/test", query_string="test=value"
+        )
+
+        assert sig1 != sig2
+
+    def test_compute_signature_different_methods_differ(self) -> None:
+        """Test different HTTP methods produce different signatures."""
+        auth = PionexAuthenticator(api_key="key", api_secret="secret")
+
+        sig_get = auth.compute_signature(
+            method="GET", path="/api/v1/test", query_string="test=value"
+        )
+        sig_post = auth.compute_signature(
+            method="POST", path="/api/v1/test", query_string="test=value"
+        )
+
+        assert sig_get != sig_post
+
+    def test_compute_signature_different_paths_differ(self) -> None:
+        """Test different paths produce different signatures."""
+        auth = PionexAuthenticator(api_key="key", api_secret="secret")
+
+        sig1 = auth.compute_signature(
+            method="GET", path="/api/v1/path1", query_string="test=value"
+        )
+        sig2 = auth.compute_signature(
+            method="GET", path="/api/v1/path2", query_string="test=value"
+        )
 
         assert sig1 != sig2
 
@@ -154,10 +278,27 @@ class TestSignatureComputation:
         """Test different query strings produce different signatures."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
 
-        sig1 = auth.compute_signature("query1=value1")
-        sig2 = auth.compute_signature("query2=value2")
+        sig1 = auth.compute_signature(
+            method="GET", path="/api/v1/test", query_string="query1=value1"
+        )
+        sig2 = auth.compute_signature(
+            method="GET", path="/api/v1/test", query_string="query2=value2"
+        )
 
         assert sig1 != sig2
+
+    def test_compute_signature_method_case_normalized(self) -> None:
+        """Test method is normalized to uppercase."""
+        auth = PionexAuthenticator(api_key="key", api_secret="secret")
+
+        sig_lower = auth.compute_signature(
+            method="get", path="/api/v1/test", query_string="test=value"
+        )
+        sig_upper = auth.compute_signature(
+            method="GET", path="/api/v1/test", query_string="test=value"
+        )
+
+        assert sig_lower == sig_upper
 
 
 class TestQueryStringBuilding:
@@ -217,39 +358,84 @@ class TestGenerateAuth:
     def test_generate_auth_returns_auth_headers(self) -> None:
         """Test generate_auth returns AuthHeaders instance."""
         auth = PionexAuthenticator(api_key="test_key", api_secret="test_secret")
-        result = auth.generate_auth(timestamp=1234567890000)
+        result = auth.generate_auth(
+            method="GET",
+            path="/api/v1/account/balances",
+            timestamp=1234567890000,
+        )
 
         assert isinstance(result, AuthHeaders)
 
     def test_generate_auth_includes_api_key(self) -> None:
         """Test generated auth includes the API key."""
         auth = PionexAuthenticator(api_key="my_api_key", api_secret="secret")
-        result = auth.generate_auth(timestamp=1000)
+        result = auth.generate_auth(
+            method="GET",
+            path="/api/v1/test",
+            timestamp=1000,
+        )
 
         assert result.pionex_key == "my_api_key"
 
     def test_generate_auth_includes_timestamp(self) -> None:
         """Test generated auth includes the timestamp."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
-        result = auth.generate_auth(timestamp=1234567890000)
+        result = auth.generate_auth(
+            method="GET",
+            path="/api/v1/test",
+            timestamp=1234567890000,
+        )
 
         assert result.timestamp == 1234567890000
 
     def test_generate_auth_computes_valid_signature(self) -> None:
         """Test generated signature is valid HMAC-SHA256."""
         api_secret = "my_secret"
+        method = "GET"
+        path = "/api/v1/account/balances"
         auth = PionexAuthenticator(api_key="key", api_secret=api_secret)
 
         result = auth.generate_auth(
+            method=method,
+            path=path,
             params={"symbol": "BTC_USDT"},
             timestamp=1234567890000,
         )
 
-        # Verify signature manually
+        # Verify signature manually: METHOD + PATH + ? + SORTED_QUERY_STRING
         query_string = "symbol=BTC_USDT&timestamp=1234567890000"
+        message = f"{method}{path}?{query_string}"
         expected_sig = hmac.new(
             key=api_secret.encode("utf-8"),
-            msg=query_string.encode("utf-8"),
+            msg=message.encode("utf-8"),
+            digestmod=hashlib.sha256,
+        ).hexdigest()
+
+        assert result.pionex_signature == expected_sig
+
+    def test_generate_auth_includes_body_in_signature_for_post(self) -> None:
+        """Test POST request signature includes JSON body per Pionex docs."""
+        api_secret = "my_secret"
+        method = "POST"
+        path = "/api/v1/trade/order"
+        body = {"side": "BUY", "symbol": "BTC_USDT"}
+        auth = PionexAuthenticator(api_key="key", api_secret=api_secret)
+
+        result = auth.generate_auth(
+            method=method,
+            path=path,
+            body=body,
+            timestamp=1234567890000,
+        )
+
+        # Verify signature: METHOD + PATH + ? + QUERY_STRING + JSON_BODY
+        # Body is serialized with sort_keys=True and compact separators
+        query_string = "timestamp=1234567890000"
+        body_str = '{"side":"BUY","symbol":"BTC_USDT"}'
+        message = f"{method}{path}?{query_string}{body_str}"
+        expected_sig = hmac.new(
+            key=api_secret.encode("utf-8"),
+            msg=message.encode("utf-8"),
             digestmod=hashlib.sha256,
         ).hexdigest()
 
@@ -260,7 +446,7 @@ class TestGenerateAuth:
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
 
         before = int(time.time() * 1000)
-        result = auth.generate_auth()
+        result = auth.generate_auth(method="GET", path="/api/v1/test")
         after = int(time.time() * 1000)
 
         assert before <= result.timestamp <= after
@@ -272,7 +458,11 @@ class TestSignRequest:
     def test_sign_request_returns_tuple(self) -> None:
         """Test sign_request returns tuple of headers and params."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
-        result = auth.sign_request(timestamp=1000)
+        result = auth.sign_request(
+            method="GET",
+            path="/api/v1/test",
+            timestamp=1000,
+        )
 
         assert isinstance(result, tuple)
         assert len(result) == 2
@@ -280,7 +470,11 @@ class TestSignRequest:
     def test_sign_request_headers_contain_required_keys(self) -> None:
         """Test returned headers contain PIONEX-KEY and PIONEX-SIGNATURE."""
         auth = PionexAuthenticator(api_key="my_key", api_secret="secret")
-        headers, _ = auth.sign_request(timestamp=1000)
+        headers, _ = auth.sign_request(
+            method="GET",
+            path="/api/v1/test",
+            timestamp=1000,
+        )
 
         assert "PIONEX-KEY" in headers
         assert "PIONEX-SIGNATURE" in headers
@@ -289,7 +483,11 @@ class TestSignRequest:
     def test_sign_request_params_contain_timestamp(self) -> None:
         """Test returned params contain timestamp."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
-        _, params = auth.sign_request(timestamp=1234567890000)
+        _, params = auth.sign_request(
+            method="GET",
+            path="/api/v1/test",
+            timestamp=1234567890000,
+        )
 
         assert "timestamp" in params
         assert params["timestamp"] == 1234567890000
@@ -298,6 +496,8 @@ class TestSignRequest:
         """Test returned params include original params plus timestamp."""
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
         _, params = auth.sign_request(
+            method="GET",
+            path="/api/v1/test",
             params={"symbol": "BTC_USDT", "limit": 100},
             timestamp=1000,
         )
@@ -311,7 +511,27 @@ class TestSignRequest:
         auth = PionexAuthenticator(api_key="key", api_secret="secret")
         original_params = {"symbol": "BTC_USDT"}
 
-        auth.sign_request(params=original_params, timestamp=1000)
+        auth.sign_request(
+            method="GET",
+            path="/api/v1/test",
+            params=original_params,
+            timestamp=1000,
+        )
 
         assert "timestamp" not in original_params
         assert original_params == {"symbol": "BTC_USDT"}
+
+    def test_sign_request_post_with_body(self) -> None:
+        """Test sign_request works with POST method and body."""
+        auth = PionexAuthenticator(api_key="key", api_secret="secret")
+        headers, params = auth.sign_request(
+            method="POST",
+            path="/api/v1/trade/order",
+            params={"symbol": "BTC_USDT"},
+            body={"side": "BUY", "type": "LIMIT", "price": "50000", "quantity": "0.001"},
+            timestamp=1000,
+        )
+
+        assert "PIONEX-KEY" in headers
+        assert "PIONEX-SIGNATURE" in headers
+        assert params["timestamp"] == 1000

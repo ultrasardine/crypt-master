@@ -18,6 +18,13 @@ from lib.pionex.models import (
     SymbolType,
     Trade,
 )
+from lib.pionex.rate_limiter import RateLimiter
+from lib.pionex.websocket import (
+    BalanceUpdate,
+    PionexWebSocketManager,
+    Subscription,
+    WebSocketTopic,
+)
 
 __all__ = [
     # Auth
@@ -39,4 +46,11 @@ __all__ = [
     "Symbol",
     "SymbolType",
     "Trade",
+    # Rate Limiter
+    "RateLimiter",
+    # WebSocket
+    "BalanceUpdate",
+    "PionexWebSocketManager",
+    "Subscription",
+    "WebSocketTopic",
 ]

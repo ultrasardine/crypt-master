@@ -6,11 +6,20 @@ requests to the Pionex exchange API.
 
 The Pionex API requires:
 - PIONEX-KEY header: The API key
-- PIONEX-SIGNATURE header: HMAC-SHA256 signature of the query string
+- PIONEX-SIGNATURE header: HMAC-SHA256 signature
 - timestamp query parameter: Current time in milliseconds since epoch
 
-The signature is computed over the complete query string (including timestamp)
-using HMAC-SHA256 with the API secret as the key.
+Signature Computation (per Pionex documentation):
+The signature is computed over the complete request path and query string
+(including timestamp) using HMAC-SHA256 with the API secret as the key.
+
+Message format: {METHOD}{PATH}?{SORTED_QUERY_STRING}
+- METHOD: HTTP method in uppercase (GET, POST, DELETE)
+- PATH: Request path (e.g., /api/v1/account/balances)
+- SORTED_QUERY_STRING: URL-encoded query params sorted alphabetically (includes timestamp)
+
+For POST requests with JSON body, the body is NOT included in the signature.
+The signature covers only the query string portion.
 
 Requirements:
 - 1.1: Authenticate using PIONEX-KEY header, PIONEX-SIGNATURE header, and timestamp
@@ -21,6 +30,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -62,13 +72,19 @@ class PionexAuthenticator:
     This class generates timestamps, computes HMAC-SHA256 signatures,
     and produces the required authentication headers for API requests.
 
-    The signature is computed over the query string (including timestamp)
-    using HMAC-SHA256 with the API secret as the key.
+    The signature is computed over the HTTP method, request path, and query string
+    (including timestamp) using HMAC-SHA256 with the API secret as the key.
+
+    Message format: {METHOD}{PATH}?{SORTED_QUERY_STRING}
 
     Example:
         >>> auth = PionexAuthenticator(api_key="my_key", api_secret="my_secret")
-        >>> headers = auth.generate_auth(params={"symbol": "BTC_USDT"})
-        >>> print(headers.to_headers())
+        >>> headers, params = auth.sign_request(
+        ...     method="GET",
+        ...     path="/api/v1/account/balances",
+        ...     params={"symbol": "BTC_USDT"}
+        ... )
+        >>> print(headers)
         {'PIONEX-KEY': 'my_key', 'PIONEX-SIGNATURE': '...'}
 
     Attributes:
@@ -110,22 +126,48 @@ class PionexAuthenticator:
         """
         return int(time.time() * 1000)
 
-    def compute_signature(self, query_string: str) -> str:
+    def compute_signature(
+        self,
+        method: str,
+        path: str,
+        query_string: str,
+        body: str | None = None,
+    ) -> str:
         """
-        Compute HMAC-SHA256 signature for the given query string.
+        Compute HMAC-SHA256 signature for the request.
 
         The signature is computed using the API secret as the key
-        and the query string as the message.
+        and the message constructed from method, path, query string, and body.
+
+        Per Pionex documentation:
+        1. Build PATH_URL: {PATH}?{SORTED_QUERY_STRING}
+        2. Concatenate METHOD + PATH_URL
+        3. For POST/DELETE with body: append the JSON body string
+        4. HMAC-SHA256 with API secret, convert to hex
+
+        Message format:
+        - GET: {METHOD}{PATH}?{QUERY_STRING}
+        - POST/DELETE with body: {METHOD}{PATH}?{QUERY_STRING}{JSON_BODY}
 
         Args:
-            query_string: The URL-encoded query string to sign
+            method: HTTP method (GET, POST, DELETE) in uppercase
+            path: Request path (e.g., /api/v1/account/balances)
+            query_string: The URL-encoded query string (sorted alphabetically)
+            body: Optional JSON body string for POST/DELETE requests
 
         Returns:
             Hexadecimal string representation of the HMAC-SHA256 signature
         """
+        # Build the message to sign: METHOD + PATH + ? + QUERY_STRING
+        message = f"{method.upper()}{path}?{query_string}"
+
+        # Per Pionex docs Step 6: Concatenate entity body for POST and DELETE
+        if body and method.upper() in ("POST", "DELETE"):
+            message += body
+
         signature = hmac.new(
             key=self._api_secret.encode("utf-8"),
-            msg=query_string.encode("utf-8"),
+            msg=message.encode("utf-8"),
             digestmod=hashlib.sha256,
         )
         return signature.hexdigest()
@@ -146,7 +188,7 @@ class PionexAuthenticator:
             timestamp: Optional timestamp in milliseconds. If None, current time is used.
 
         Returns:
-            URL-encoded query string with timestamp included
+            URL-encoded query string with timestamp included, sorted alphabetically
         """
         if timestamp is None:
             timestamp = self.generate_timestamp()
@@ -164,7 +206,10 @@ class PionexAuthenticator:
 
     def generate_auth(
         self,
+        method: str,
+        path: str,
         params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
         timestamp: int | None = None,
     ) -> AuthHeaders:
         """
@@ -173,11 +218,14 @@ class PionexAuthenticator:
         This method:
         1. Generates a timestamp (if not provided)
         2. Builds the query string with all parameters including timestamp
-        3. Computes the HMAC-SHA256 signature
+        3. Computes the HMAC-SHA256 signature over method + path + query string + body
         4. Returns the authentication headers
 
         Args:
+            method: HTTP method (GET, POST, DELETE)
+            path: Request path (e.g., /api/v1/account/balances)
             params: Optional dictionary of query parameters for the request
+            body: Optional request body dict for POST/DELETE requests
             timestamp: Optional timestamp in milliseconds. If None, current time is used.
 
         Returns:
@@ -185,7 +233,11 @@ class PionexAuthenticator:
 
         Example:
             >>> auth = PionexAuthenticator("key", "secret")
-            >>> headers = auth.generate_auth({"symbol": "BTC_USDT"})
+            >>> headers = auth.generate_auth(
+            ...     method="GET",
+            ...     path="/api/v1/account/balances",
+            ...     params={"symbol": "BTC_USDT"}
+            ... )
             >>> print(headers.timestamp)  # Timestamp used
             >>> print(headers.to_headers())  # Headers dict
         """
@@ -193,7 +245,18 @@ class PionexAuthenticator:
             timestamp = self.generate_timestamp()
 
         query_string = self.build_query_string(params=params, timestamp=timestamp)
-        signature = self.compute_signature(query_string)
+
+        # Convert body dict to JSON string for signature (if present)
+        body_str: str | None = None
+        if body:
+            body_str = json.dumps(body, separators=(",", ":"), sort_keys=True)
+
+        signature = self.compute_signature(
+            method=method,
+            path=path,
+            query_string=query_string,
+            body=body_str,
+        )
 
         return AuthHeaders(
             pionex_key=self._api_key,
@@ -203,7 +266,10 @@ class PionexAuthenticator:
 
     def sign_request(
         self,
+        method: str,
+        path: str,
         params: dict[str, Any] | None = None,
+        body: dict[str, Any] | None = None,
         timestamp: int | None = None,
     ) -> tuple[dict[str, str], dict[str, Any]]:
         """
@@ -213,8 +279,15 @@ class PionexAuthenticator:
         and the query parameters (with timestamp added) ready for use
         in an HTTP request.
 
+        Per Pionex documentation, the signature includes:
+        - METHOD + PATH + ? + SORTED_QUERY_STRING
+        - For POST/DELETE: + JSON_BODY
+
         Args:
+            method: HTTP method (GET, POST, DELETE)
+            path: Request path (e.g., /api/v1/account/balances)
             params: Optional dictionary of query parameters
+            body: Optional request body dict for POST/DELETE requests
             timestamp: Optional timestamp in milliseconds
 
         Returns:
@@ -222,13 +295,23 @@ class PionexAuthenticator:
 
         Example:
             >>> auth = PionexAuthenticator("key", "secret")
-            >>> headers, params = auth.sign_request({"symbol": "BTC_USDT"})
+            >>> headers, params = auth.sign_request(
+            ...     method="GET",
+            ...     path="/api/v1/account/balances",
+            ...     params={"symbol": "BTC_USDT"}
+            ... )
             >>> # Use headers and params in HTTP request
         """
         if timestamp is None:
             timestamp = self.generate_timestamp()
 
-        auth_headers = self.generate_auth(params=params, timestamp=timestamp)
+        auth_headers = self.generate_auth(
+            method=method,
+            path=path,
+            params=params,
+            body=body,
+            timestamp=timestamp,
+        )
 
         # Build params with timestamp
         request_params: dict[str, Any] = dict(params) if params else {}

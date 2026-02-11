@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Open Orders - Crypt Master{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8" data-trading-ws="{% for pair in active_pairs %}{{ pair }}{% if not forloop.last %},{% endif %}{% endfor %}">
+    <!-- Page Header -->
+    <div class="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div class="flex items-center gap-2">
+            <h1 class="text-2xl font-bold tracking-tight text-slate-100 sm:text-3xl">Open Orders</h1>
+            <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                <span class="flex h-4 w-4 items-center justify-center rounded-full bg-slate-600 text-[10px] font-semibold text-slate-300">?</span>
+                <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Currently open orders on Pionex. These orders are waiting to be filled. You can cancel individual orders or all orders for a symbol.</span>
+            </span>
+            <!-- Connection Status Indicator -->
+            <div class="ml-4 flex items-center gap-2" title="WebSocket connection status">
+                <span id="ws-connection-status" class="h-2 w-2 rounded-full bg-slate-500"></span>
+                <span id="ws-connection-text" class="text-xs text-slate-500">Connecting...</span>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <a href="{% url 'trading:order_history' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 shadow-sm transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                View History
+            </a>
+        </div>
+    </div>
+
+    <!-- Error Alert -->
+    {% if error_message %}
+    <div class="mb-6 rounded-lg border border-red-200 bg-red-900/20 p-4">
+        <div class="flex">
+            <svg class="h-5 w-5 flex-shrink-0 text-red-400" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" />
+            </svg>
+            <div class="ml-3">
+                <p class="text-sm font-medium text-red-400">{{ error_message }}</p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Summary Bar -->
+    <div class="mb-6 flex flex-wrap items-center gap-6 rounded-xl border border-slate-700 bg-slate-800 px-4 py-4 sm:px-6">
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-slate-400">Open Orders</span>
+            <span class="text-lg font-semibold text-slate-100">{{ order_count }}</span>
+        </div>
+        {% if current_symbol %}
+        <div class="flex items-center gap-2">
+            <span class="text-sm font-medium text-slate-400">Symbol</span>
+            <span class="inline-flex items-center rounded-full bg-indigo-900/50 px-2.5 py-0.5 text-xs font-medium text-indigo-400">{{ current_symbol }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Filters -->
+    <form method="get" class="mb-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-4 sm:px-6">
+            <h3 class="text-lg font-semibold text-slate-100">Filters</h3>
+        </div>
+        <div class="px-4 py-5 sm:px-6">
+            <div class="flex flex-wrap items-end gap-4">
+                <div class="min-w-[200px]">
+                    <label for="symbol" class="block text-sm font-medium text-slate-300">Trading Pair</label>
+                    <select name="symbol" id="symbol" class="mt-2 block w-full rounded-lg border border-slate-600 bg-slate-700 px-3 py-2.5 text-slate-100 focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500 sm:text-sm">
+                        <option value="">All Pairs</option>
+                        {% for pair in trading_pairs %}
+                        <option value="{{ pair.symbol }}" {% if current_symbol == pair.symbol %}selected{% endif %}>{{ pair.symbol }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex items-end gap-2">
+                    <button type="submit" class="inline-flex items-center justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                        Filter
+                    </button>
+                    <a href="{% url 'trading:order_list' %}" class="inline-flex items-center justify-center rounded-lg border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 shadow-sm transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+                        Clear
+                    </a>
+                </div>
+            </div>
+        </div>
+    </form>
+
+    <!-- Cancel All Button -->
+    {% if orders and current_symbol %}
+    <div class="mb-4 flex justify-end">
+        <button type="button" onclick="confirmCancelAll('{{ current_symbol }}', {{ order_count }})" class="inline-flex items-center justify-center rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-slate-800">
+            <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Cancel All ({{ order_count }})
+        </button>
+    </div>
+    {% endif %}
+
+    <!-- Orders Table -->
+    <div class="overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="overflow-x-auto">
+            <table class="min-w-full divide-y divide-slate-700">
+                <thead class="bg-slate-700/50">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Symbol</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Side</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Type</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Price</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Size</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase tracking-wider text-slate-400">Filled</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Status</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-slate-400">Created</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-400">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-700" id="orders-tbody">
+                    {% for order in orders %}
+                    <tr class="transition-colors hover:bg-slate-700/50" id="order-row-{{ order.order_id }}">
+                        <td class="whitespace-nowrap px-4 py-4 text-sm">
+                            <a href="{% url 'trading:order_detail' symbol=order.symbol order_id=order.order_id %}" class="font-medium text-indigo-400 hover:text-indigo-300">
+                                {{ order.symbol }}
+                            </a>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm">
+                            <span class="inline-flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-semibold {% if order.side.value == 'BUY' %}bg-emerald-900/50 text-emerald-400{% else %}bg-red-900/50 text-red-400{% endif %}">
+                                <span class="h-1.5 w-1.5 rounded-full {% if order.side.value == 'BUY' %}bg-emerald-400{% else %}bg-red-400{% endif %}"></span>
+                                {{ order.side.value }}
+                            </span>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-300">{{ order.order_type.value }}</td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm font-medium text-slate-100">{{ order.price }}</td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-300">{{ order.size }}</td>
+                        <td class="whitespace-nowrap px-4 py-4 text-right text-sm text-slate-300">
+                            {{ order.filled_size }}
+                            {% if order.size > 0 %}
+                            <span class="text-slate-500">({{ order.filled_size|divisibleby:order.size|floatformat:1 }}%)</span>
+                            {% endif %}
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-center text-sm">
+                            <span class="inline-flex items-center rounded-full bg-sky-900/50 px-2.5 py-0.5 text-xs font-medium text-sky-400">{{ order.status.value }}</span>
+                        </td>
+                        <td class="whitespace-nowrap px-4 py-4 text-sm text-slate-400">{{ order.create_time|date:"M d, H:i" }}</td>
+                        <td class="whitespace-nowrap px-4 py-4 text-center text-sm">
+                            <button type="button" onclick="confirmCancelOrder('{{ order.symbol }}', '{{ order.order_id }}')" class="inline-flex items-center justify-center rounded-lg p-2 text-red-400 transition-colors hover:bg-red-900/50 hover:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-500" aria-label="Cancel order">
+                                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                                </svg>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-4 py-8 text-center text-sm text-slate-500">No open orders found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Cancel Confirmation Modal -->
+<div id="cancel-modal" class="fixed inset-0 z-50 hidden overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+    <div class="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0">
+        <!-- Background overlay -->
+        <div class="fixed inset-0 bg-slate-900/75 transition-opacity" aria-hidden="true" onclick="closeModal()"></div>
+        
+        <!-- Modal panel -->
+        <div class="inline-block transform overflow-hidden rounded-xl border border-slate-700 bg-slate-800 text-left align-bottom shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:align-middle">
+            <div class="px-4 pb-4 pt-5 sm:p-6 sm:pb-4">
+                <div class="sm:flex sm:items-start">
+                    <div class="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-900/50 sm:mx-0 sm:h-10 sm:w-10">
+                        <svg class="h-6 w-6 text-red-400" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+                        </svg>
+                    </div>
+                    <div class="mt-3 text-center sm:ml-4 sm:mt-0 sm:text-left">
+                        <h3 class="text-lg font-semibold leading-6 text-slate-100" id="modal-title">Cancel Order</h3>
+                        <div class="mt-2">
+                            <p class="text-sm text-slate-400" id="modal-message">Are you sure you want to cancel this order?</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="border-t border-slate-700 bg-slate-800/50 px-4 py-3 sm:flex sm:flex-row-reverse sm:px-6">
+                <button type="button" id="confirm-cancel-btn" class="inline-flex w-full justify-center rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-slate-800 sm:ml-3 sm:w-auto">
+                    Cancel Order
+                </button>
+                <button type="button" onclick="closeModal()" class="mt-3 inline-flex w-full justify-center rounded-lg border border-slate-600 bg-slate-700 px-4 py-2.5 text-sm font-semibold text-slate-300 shadow-sm transition-colors hover:bg-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 focus:ring-offset-slate-800 sm:mt-0 sm:w-auto">
+                    Keep Order
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{% static 'js/trading-websocket.js' %}"></script>
+<script>
+    let pendingCancelSymbol = null;
+    let pendingCancelOrderId = null;
+    let pendingCancelAll = false;
+
+    function confirmCancelOrder(symbol, orderId) {
+        pendingCancelSymbol = symbol;
+        pendingCancelOrderId = orderId;
+        pendingCancelAll = false;
+        
+        document.getElementById('modal-title').textContent = 'Cancel Order';
+        document.getElementById('modal-message').textContent = `Are you sure you want to cancel order ${orderId} for ${symbol}?`;
+        document.getElementById('confirm-cancel-btn').textContent = 'Cancel Order';
+        document.getElementById('confirm-cancel-btn').onclick = executeCancelOrder;
+        document.getElementById('cancel-modal').classList.remove('hidden');
+    }
+
+    function confirmCancelAll(symbol, count) {
+        pendingCancelSymbol = symbol;
+        pendingCancelOrderId = null;
+        pendingCancelAll = true;
+        
+        document.getElementById('modal-title').textContent = 'Cancel All Orders';
+        document.getElementById('modal-message').textContent = `Are you sure you want to cancel all ${count} open orders for ${symbol}?`;
+        document.getElementById('confirm-cancel-btn').textContent = `Cancel All (${count})`;
+        document.getElementById('confirm-cancel-btn').onclick = executeCancelAll;
+        document.getElementById('cancel-modal').classList.remove('hidden');
+    }
+
+    function closeModal() {
+        document.getElementById('cancel-modal').classList.add('hidden');
+        pendingCancelSymbol = null;
+        pendingCancelOrderId = null;
+        pendingCancelAll = false;
+    }
+
+    async function executeCancelOrder() {
+        if (!pendingCancelSymbol || !pendingCancelOrderId) return;
+        
+        const btn = document.getElementById('confirm-cancel-btn');
+        btn.disabled = true;
+        btn.textContent = 'Canceling...';
+        
+        try {
+            const response = await fetch(`/trading/orders/${pendingCancelSymbol}/${pendingCancelOrderId}/cancel/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json',
+                },
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Remove the row from the table
+                const row = document.getElementById(`order-row-${pendingCancelOrderId}`);
+                if (row) {
+                    row.remove();
+                }
+                showAlert('success', data.message);
+            } else {
+                showAlert('error', data.message || 'Failed to cancel order');
+            }
+        } catch (error) {
+            showAlert('error', 'An error occurred while canceling the order');
+        } finally {
+            closeModal();
+            btn.disabled = false;
+        }
+    }
+
+    async function executeCancelAll() {
+        if (!pendingCancelSymbol) return;
+        
+        const btn = document.getElementById('confirm-cancel-btn');
+        btn.disabled = true;
+        btn.textContent = 'Canceling...';
+        
+        try {
+            const response = await fetch(`/trading/orders/${pendingCancelSymbol}/cancel-all/`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRFToken': getCookie('csrftoken'),
+                    'Content-Type': 'application/json',
+                },
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Reload the page to show updated orders
+                window.location.reload();
+            } else {
+                showAlert('error', data.message || 'Failed to cancel orders');
+            }
+        } catch (error) {
+            showAlert('error', 'An error occurred while canceling orders');
+        } finally {
+            closeModal();
+            btn.disabled = false;
+        }
+    }
+
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function showAlert(type, message) {
+        const alertDiv = document.createElement('div');
+        alertDiv.className = `mb-4 rounded-lg border p-4 ${type === 'success' ? 'border-emerald-200 bg-emerald-900/20 text-emerald-400' : 'border-red-200 bg-red-900/20 text-red-400'}`;
+        alertDiv.innerHTML = `
+            <div class="flex">
+                <div class="flex-shrink-0">
+                    ${type === 'success' 
+                        ? '<svg class="h-5 w-5 text-emerald-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clip-rule="evenodd" /></svg>'
+                        : '<svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clip-rule="evenodd" /></svg>'
+                    }
+                </div>
+                <div class="ml-3">
+                    <p class="text-sm font-medium">${message}</p>
+                </div>
+            </div>
+        `;
+        
+        const container = document.querySelector('.mx-auto.max-w-7xl');
+        container.insertBefore(alertDiv, container.firstChild.nextSibling);
+        
+        // Auto-remove after 5 seconds
+        setTimeout(() => alertDiv.remove(), 5000);
+    }
+</script>
+{% endblock %}

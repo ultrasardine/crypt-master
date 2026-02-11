@@ -47,9 +47,236 @@
                 <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
                 All Services Healthy
             </span>
+            <!-- Trading WebSocket Status -->
+            <span class="inline-flex items-center gap-1.5 rounded-full bg-slate-700 px-2.5 py-0.5 text-xs font-medium text-slate-400" title="Trading WebSocket">
+                <span id="trading-ws-status" class="h-2 w-2 rounded-full bg-slate-500"></span>
+                Trading
+            </span>
+            <!-- Rate Limit Status Indicator -->
+            <span id="rate-limit-status-badge" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {% if rate_limit.status == 'ok' %}bg-emerald-900/50 text-emerald-400{% elif rate_limit.status == 'warning' %}bg-amber-900/50 text-amber-400{% elif rate_limit.status == 'error' %}bg-red-900/50 text-red-400{% else %}bg-slate-700 text-slate-400{% endif %}" title="API Rate Limit Status">
+                <span class="h-2 w-2 rounded-full {% if rate_limit.status == 'ok' %}bg-emerald-400{% elif rate_limit.status == 'warning' %}bg-amber-400{% elif rate_limit.status == 'error' %}bg-red-400{% else %}bg-slate-500{% endif %}"></span>
+                Rate Limit
+            </span>
         </div>
     </div>
     
+    <!-- Rate Limit Dashboard Widget -->
+    <!-- Requirements: 4.6 - Expose current usage metrics via dashboard -->
+    <!-- Requirements: 4.5 - Show warning when approaching limits, error when rate limited -->
+    <div id="rate-limit-widget" class="mb-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-3 sm:px-6">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <h2 class="text-sm font-semibold text-slate-100">API Rate Limits</h2>
+                    <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                        <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                        <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Pionex API rate limits: 10 requests/second per IP and per account. Exceeding limits results in a 60-second ban.</span>
+                    </span>
+                </div>
+                <!-- Status Badge -->
+                <span id="rate-limit-status" class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium {% if rate_limit.status == 'ok' %}bg-emerald-900/50 text-emerald-400{% elif rate_limit.status == 'warning' %}bg-amber-900/50 text-amber-400{% elif rate_limit.status == 'error' %}bg-red-900/50 text-red-400{% else %}bg-slate-700 text-slate-400{% endif %}">
+                    {% if rate_limit.status == 'ok' %}
+                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    Healthy
+                    {% elif rate_limit.status == 'warning' %}
+                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    Warning
+                    {% elif rate_limit.status == 'error' %}
+                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Rate Limited
+                    {% else %}
+                    <svg class="h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Unknown
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+        <div class="px-4 py-4 sm:px-6">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <!-- IP Rate Limit Usage -->
+                <div class="rounded-lg bg-slate-700/50 p-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9" />
+                            </svg>
+                            <span class="text-sm font-medium text-slate-300">IP Usage</span>
+                        </div>
+                        <span id="ip-usage-percent" class="text-sm font-semibold {% if rate_limit.ip_usage_percent >= 80 %}text-red-400{% elif rate_limit.ip_usage_percent >= 50 %}text-amber-400{% else %}text-emerald-400{% endif %}">{{ rate_limit.ip_usage_percent }}%</span>
+                    </div>
+                    <div class="mt-3">
+                        <div class="h-2 w-full overflow-hidden rounded-full bg-slate-600">
+                            <div id="ip-usage-bar" class="h-full rounded-full transition-all duration-300 {% if rate_limit.ip_usage_percent >= 80 %}bg-red-500{% elif rate_limit.ip_usage_percent >= 50 %}bg-amber-500{% else %}bg-emerald-500{% endif %}" style="width: {{ rate_limit.ip_usage_percent }}%"></div>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-500">10 requests/second limit</p>
+                </div>
+                
+                <!-- Account Rate Limit Usage -->
+                <div class="rounded-lg bg-slate-700/50 p-4">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center gap-2">
+                            <svg class="h-4 w-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                            </svg>
+                            <span class="text-sm font-medium text-slate-300">Account Usage</span>
+                        </div>
+                        <span id="account-usage-percent" class="text-sm font-semibold {% if rate_limit.account_usage_percent >= 80 %}text-red-400{% elif rate_limit.account_usage_percent >= 50 %}text-amber-400{% else %}text-emerald-400{% endif %}">{{ rate_limit.account_usage_percent }}%</span>
+                    </div>
+                    <div class="mt-3">
+                        <div class="h-2 w-full overflow-hidden rounded-full bg-slate-600">
+                            <div id="account-usage-bar" class="h-full rounded-full transition-all duration-300 {% if rate_limit.account_usage_percent >= 80 %}bg-red-500{% elif rate_limit.account_usage_percent >= 50 %}bg-amber-500{% else %}bg-emerald-500{% endif %}" style="width: {{ rate_limit.account_usage_percent }}%"></div>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-xs text-slate-500">10 requests/second limit (private endpoints)</p>
+                </div>
+            </div>
+            
+            <!-- Rate Limit Alert Banner -->
+            {% if rate_limit.status == 'error' %}
+            <div id="rate-limit-alert" class="mt-4 rounded-lg border border-red-500/50 bg-red-900/20 p-3">
+                <div class="flex items-start gap-3">
+                    <svg class="h-5 w-5 flex-shrink-0 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                        <p class="text-sm font-medium text-red-400">Rate Limited</p>
+                        <p class="mt-1 text-xs text-red-300/80">API requests are temporarily blocked. Remaining: <span id="ban-remaining" class="font-semibold">{{ rate_limit.ban_remaining|floatformat:0 }}</span> seconds</p>
+                    </div>
+                </div>
+            </div>
+            {% elif rate_limit.status == 'warning' %}
+            <div id="rate-limit-alert" class="mt-4 rounded-lg border border-amber-500/50 bg-amber-900/20 p-3">
+                <div class="flex items-start gap-3">
+                    <svg class="h-5 w-5 flex-shrink-0 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <div>
+                        <p class="text-sm font-medium text-amber-400">Approaching Rate Limits</p>
+                        <p class="mt-1 text-xs text-amber-300/80">API usage is high. Consider reducing request frequency to avoid being rate limited.</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+            
+            <!-- Status Message -->
+            <div class="mt-3 flex items-center justify-between text-xs text-slate-500">
+                <span id="rate-limit-message">{{ rate_limit.status_message }}</span>
+                <span>Updates in real-time via WebSocket</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Last Data Points Widget - Pipeline Health -->
+    <div class="mb-6 overflow-hidden rounded-xl border border-slate-700 bg-slate-800 shadow-sm">
+        <div class="border-b border-slate-700 px-4 py-3 sm:px-6">
+            <div class="flex items-center gap-2">
+                <h2 class="text-sm font-semibold text-slate-100">Pipeline Status</h2>
+                <span class="group relative inline-flex cursor-help" tabindex="0" aria-label="Help">
+                    <span class="flex h-3.5 w-3.5 items-center justify-center rounded-full bg-slate-600 text-[9px] font-semibold text-slate-300">?</span>
+                    <span class="pointer-events-none absolute bottom-full left-1/2 z-50 mb-2 -translate-x-1/2 whitespace-normal rounded-lg border border-slate-600 bg-slate-700 px-3 py-2 text-xs text-slate-200 opacity-0 shadow-lg transition-opacity group-hover:opacity-100" style="width: max-content; max-width: 280px;">Shows the last data points from each pipeline component. Green = recent data, Amber = stale data.</span>
+                </span>
+            </div>
+        </div>
+        <div class="px-4 py-4 sm:px-6">
+            <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <!-- Market Context -->
+                <div class="rounded-lg bg-slate-700/50 p-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Market Context</span>
+                        {% if last_data_points.market_context %}
+                        <span class="h-2 w-2 rounded-full {% if last_data_points.market_context.minutes_ago < 30 %}bg-emerald-400{% elif last_data_points.market_context.minutes_ago < 60 %}bg-amber-400{% else %}bg-red-400{% endif %}"></span>
+                        {% else %}
+                        <span class="h-2 w-2 rounded-full bg-slate-500"></span>
+                        {% endif %}
+                    </div>
+                    {% if last_data_points.market_context %}
+                    <div class="mt-2">
+                        <span class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium {% if last_data_points.market_context.regime == 'RISK_ON' %}bg-emerald-900/50 text-emerald-400{% elif last_data_points.market_context.regime == 'RISK_OFF' %}bg-red-900/50 text-red-400{% elif last_data_points.market_context.regime == 'TRENDING_UP' %}bg-sky-900/50 text-sky-400{% elif last_data_points.market_context.regime == 'TRENDING_DOWN' %}bg-amber-900/50 text-amber-400{% else %}bg-slate-600 text-slate-300{% endif %}">
+                            {{ last_data_points.market_context.regime|default:"UNKNOWN" }}
+                        </span>
+                    </div>
+                    <p class="mt-1 text-xs text-slate-500">{{ last_data_points.market_context.minutes_ago }}m ago</p>
+                    {% else %}
+                    <p class="mt-2 text-xs text-slate-500">No data yet – waiting for first sync</p>
+                    {% endif %}
+                </div>
+
+                <!-- Recent Signals -->
+                <div class="rounded-lg bg-slate-700/50 p-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Recent Signals</span>
+                        {% if last_data_points.recent_signals %}
+                        <span class="h-2 w-2 rounded-full {% if last_data_points.recent_signals.0.minutes_ago < 60 %}bg-emerald-400{% elif last_data_points.recent_signals.0.minutes_ago < 180 %}bg-amber-400{% else %}bg-red-400{% endif %}"></span>
+                        {% else %}
+                        <span class="h-2 w-2 rounded-full bg-slate-500"></span>
+                        {% endif %}
+                    </div>
+                    {% if last_data_points.recent_signals %}
+                    <div class="mt-2 space-y-1">
+                        {% for sig in last_data_points.recent_signals|slice:":3" %}
+                        <div class="flex items-center justify-between text-xs">
+                            <span class="text-slate-300">{{ sig.symbol }}</span>
+                            <span class="{% if sig.direction == 'BUY' %}text-emerald-400{% elif sig.direction == 'SELL' %}text-red-400{% else %}text-slate-400{% endif %}">{{ sig.direction }} {{ sig.confidence|floatformat:0 }}%</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="mt-2 text-xs text-slate-500">No signals yet – waiting for analysis</p>
+                    {% endif %}
+                </div>
+
+                <!-- Portfolio Snapshot -->
+                <div class="rounded-lg bg-slate-700/50 p-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Portfolio Sync</span>
+                        {% if last_data_points.portfolio_snapshot %}
+                        <span class="h-2 w-2 rounded-full {% if last_data_points.portfolio_snapshot.minutes_ago < 10 %}bg-emerald-400{% elif last_data_points.portfolio_snapshot.minutes_ago < 30 %}bg-amber-400{% else %}bg-red-400{% endif %}"></span>
+                        {% else %}
+                        <span class="h-2 w-2 rounded-full bg-slate-500"></span>
+                        {% endif %}
+                    </div>
+                    {% if last_data_points.portfolio_snapshot %}
+                    <div class="mt-2">
+                        <span class="text-lg font-semibold text-slate-100">${{ last_data_points.portfolio_snapshot.total_value|floatformat:2 }}</span>
+                    </div>
+                    <p class="mt-1 text-xs text-slate-500">{{ last_data_points.portfolio_snapshot.minutes_ago }}m ago</p>
+                    {% else %}
+                    <p class="mt-2 text-xs text-slate-500">No data yet – configure Pionex API</p>
+                    {% endif %}
+                </div>
+
+                <!-- Market Sentiment -->
+                <div class="rounded-lg bg-slate-700/50 p-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-medium text-slate-400">Fear & Greed</span>
+                        {% if last_data_points.market_sentiment %}
+                        <span class="h-2 w-2 rounded-full {% if last_data_points.market_sentiment.is_stale %}bg-amber-400{% else %}bg-emerald-400{% endif %}"></span>
+                        {% else %}
+                        <span class="h-2 w-2 rounded-full bg-slate-500"></span>
+                        {% endif %}
+                    </div>
+                    {% if last_data_points.market_sentiment %}
+                    <div class="mt-2 flex items-baseline gap-2">
+                        <span class="text-lg font-semibold {% if last_data_points.market_sentiment.fear_greed_index >= 60 %}text-emerald-400{% elif last_data_points.market_sentiment.fear_greed_index <= 40 %}text-red-400{% else %}text-amber-400{% endif %}">{{ last_data_points.market_sentiment.fear_greed_index }}</span>
+                        <span class="text-xs text-slate-400">{{ last_data_points.market_sentiment.classification }}</span>
+                    </div>
+                    {% else %}
+                    <p class="mt-2 text-xs text-slate-500">No data yet – waiting for sync</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Portfolio & Trade Stats -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <!-- Portfolio Overview -->
@@ -112,7 +339,13 @@
                     </div>
                 </div>
                 {% else %}
-                <p class="text-sm text-slate-500">No portfolio data available yet.</p>
+                <div class="rounded-lg border border-slate-600 bg-slate-700/30 p-4 text-center">
+                    <svg class="mx-auto h-8 w-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="mt-2 text-sm font-medium text-slate-400">No portfolio data yet</p>
+                    <p class="mt-1 text-xs text-slate-500">Waiting for first Pionex sync. Ensure your API keys are configured and Celery is running.</p>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -236,7 +469,13 @@
                 </div>
                 {% endif %}
                 {% else %}
-                <p class="text-sm text-slate-500">No market sentiment data available yet.</p>
+                <div class="rounded-lg border border-slate-600 bg-slate-700/30 p-4 text-center">
+                    <svg class="mx-auto h-8 w-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                    <p class="mt-2 text-sm font-medium text-slate-400">No market sentiment data yet</p>
+                    <p class="mt-1 text-xs text-slate-500">Waiting for first public data sync. This uses free APIs and requires no configuration.</p>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -315,7 +554,13 @@
                     </div>
                 </div>
                 {% else %}
-                <p class="text-sm text-slate-500">No signal accuracy data available yet. Execute some signals to see accuracy metrics.</p>
+                <div class="rounded-lg border border-slate-600 bg-slate-700/30 p-4 text-center">
+                    <svg class="mx-auto h-8 w-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="mt-2 text-sm font-medium text-slate-400">No signal accuracy data yet</p>
+                    <p class="mt-1 text-xs text-slate-500">Execute some signals and record their outcomes to see accuracy metrics.</p>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -596,7 +841,13 @@
                 <a href="{% url 'bots:bot_list' %}" class="text-sm font-medium text-indigo-400 transition-colors hover:text-indigo-300 focus:outline-none focus:underline">View all bots →</a>
             </div>
             {% else %}
-            <p class="text-sm text-slate-500">No active bots.</p>
+            <div class="rounded-lg border border-slate-600 bg-slate-700/30 p-6 text-center">
+                <svg class="mx-auto h-10 w-10 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <p class="mt-3 text-sm font-medium text-slate-400">No active bots</p>
+                <p class="mt-1 text-xs text-slate-500">Bots will appear here once created via signals or manually on Pionex.</p>
+            </div>
             {% endif %}
         </div>
     </div>
@@ -647,7 +898,13 @@
                     <a href="{% url 'trading:signal_list' %}" class="text-sm font-medium text-indigo-400 transition-colors hover:text-indigo-300 focus:outline-none focus:underline">View all signals →</a>
                 </div>
                 {% else %}
-                <p class="text-sm text-slate-500">No recent signals.</p>
+                <div class="rounded-lg border border-slate-600 bg-slate-700/30 p-4 text-center">
+                    <svg class="mx-auto h-8 w-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                    <p class="mt-2 text-sm font-medium text-slate-400">No recent signals</p>
+                    <p class="mt-1 text-xs text-slate-500">Signals will appear once the Market Agent analyzes your trading pairs.</p>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -689,7 +946,13 @@
                     <a href="{% url 'trading:trade_list' %}" class="text-sm font-medium text-indigo-400 transition-colors hover:text-indigo-300 focus:outline-none focus:underline">View all trades →</a>
                 </div>
                 {% else %}
-                <p class="text-sm text-slate-500">No recent trades.</p>
+                <div class="rounded-lg border border-slate-600 bg-slate-700/30 p-4 text-center">
+                    <svg class="mx-auto h-8 w-8 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
+                    </svg>
+                    <p class="mt-2 text-sm font-medium text-slate-400">No recent trades</p>
+                    <p class="mt-1 text-xs text-slate-500">Trades will appear here once bots execute orders.</p>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -711,4 +974,30 @@
 <!-- Dashboard JavaScript -->
 <script src="{% static 'js/dashboard-charts.js' %}"></script>
 <script src="{% static 'js/dashboard-websocket.js' %}"></script>
+<script src="{% static 'js/trading-websocket.js' %}"></script>
+<script>
+    // Initialize trading WebSocket for real-time balance updates
+    document.addEventListener('DOMContentLoaded', function() {
+        const tradingWs = new TradingWebSocket({
+            onBalanceUpdate: function(data) {
+                // Update portfolio display when balance changes
+                console.log('Balance update received:', data);
+                // Trigger a refresh of portfolio data
+                if (typeof refreshPortfolio === 'function') {
+                    refreshPortfolio();
+                }
+            },
+            onConnectionStatusChange: function(connected, message) {
+                // Update trading connection status in dashboard
+                const tradingStatusEl = document.getElementById('trading-ws-status');
+                if (tradingStatusEl) {
+                    tradingStatusEl.className = connected 
+                        ? 'h-2 w-2 rounded-full bg-emerald-400'
+                        : 'h-2 w-2 rounded-full bg-red-400';
+                    tradingStatusEl.title = 'Trading: ' + message;
+                }
+            }
+        });
+    });
+</script>
 {% endblock %}

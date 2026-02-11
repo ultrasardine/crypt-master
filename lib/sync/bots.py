@@ -109,8 +109,12 @@ class BotSyncService:
                     f"Fetched {len(remote_bots)} bots from Pionex for user {user.username}"
                 )
 
+                from asgiref.sync import sync_to_async
+
                 # Get all local bots for this user
-                local_bots = Bot.objects.for_user(user).live()
+                local_bots = await sync_to_async(list)(
+                    Bot.objects.for_user(user).live()
+                )
 
                 # Create a mapping of pionex_bot_id -> local Bot
                 local_bots_map = {bot.pionex_bot_id: bot for bot in local_bots}
@@ -145,7 +149,7 @@ class BotSyncService:
                                 local_bot.stopped_at = timezone.now()
                                 local_bot.stop_reason = "Bot no longer exists on Pionex"
                                 local_bot.last_synced_at = timezone.now()
-                                local_bot.save()
+                                await sync_to_async(local_bot.save)()
 
                                 logger.info(
                                     f"Marked bot {local_bot.pionex_bot_id} as STOPPED "
@@ -282,8 +286,10 @@ class BotSyncService:
         - 2.5: Broadcast update via WebSocket_Broadcaster
         """
         try:
+            from asgiref.sync import sync_to_async
+
             # Get or create trading pair
-            trading_pair, _ = TradingPair.objects.get_or_create(
+            trading_pair, _ = await sync_to_async(TradingPair.objects.get_or_create)(
                 symbol=remote_bot.symbol,
                 defaults={
                     "base_currency": remote_bot.symbol.split("_")[0],
@@ -328,7 +334,7 @@ class BotSyncService:
                     local_bot.stopped_at = timezone.now()
                     local_bot.stop_reason = "Bot stopped on Pionex"
 
-                local_bot.save()
+                await sync_to_async(local_bot.save)()
 
                 # Record signal outcome if bot transitioned to STOPPED
                 if was_active and is_now_stopped:
@@ -370,7 +376,7 @@ class BotSyncService:
 
             else:
                 # Create new bot
-                new_bot = Bot.objects.create(
+                new_bot = await sync_to_async(Bot.objects.create)(
                     user=user,
                     pionex_bot_id=remote_bot.bot_id,
                     bot_type=bot_type,
